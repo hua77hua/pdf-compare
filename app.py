@@ -13,7 +13,7 @@ app = Flask(__name__, static_folder='static', static_url_path='')
 CORS(app)
 
 # Allow DATA_DIR override so cloud persistent-disk mounts work
-_DATA_DIR    = os.environ.get('DATA_DIR', '.')
+_DATA_DIR    = os.environ.get('DATA_DIR', os.path.dirname(os.path.abspath(__file__)))
 UPLOAD_FOLDER = os.path.join(_DATA_DIR, 'uploads')
 DB_PATH       = os.path.join(_DATA_DIR, 'pdf_compare.db')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
