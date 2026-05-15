@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDF 活動比較系統</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+
+  <!-- ══ Header ══ -->
+  <header class="app-hd">
+    <div class="hd-brand">
+      <div class="hd-logo">✦</div>
+      <div>
+        <div class="hd-title">PDF 活動比較系統</div>
+        <div class="hd-sub">Upload · Compare · Record · Suggest</div>
+      </div>
+    </div>
+    <div class="hd-right">
+      <div class="stat-chip">
+        <span class="stat-n" id="totalRec">0</span>
+        <span class="stat-l">筆歷史記錄</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ══ 4 Blocks Grid ══ -->
+  <div class="grid">
+
+    <!-- ① Upload -->
+    <div class="block blk-upload">
+      <div class="blk-hd">
+        <span class="blk-ico">📤</span>
+        <div class="blk-hd-text">
+          <div class="blk-title">上傳 PDF</div>
+          <div class="blk-sub">選擇兩份活動文件進行對比分析</div>
+        </div>
+      </div>
+      <div class="blk-bd">
+
+        <!-- Two slots -->
+        <div class="slots-row">
+          <div class="slot slot-a" id="slotA">
+            <input type="file" id="fileA" accept=".pdf" style="display:none">
+            <div class="slot-idle" id="slotAIdle">
+              <div class="slot-big-ico">📄</div>
+              <div class="slot-label">文件 A</div>
+              <div class="slot-hint">點擊或拖曳 PDF</div>
+            </div>
+            <div class="slot-filled" id="slotAFill" style="display:none">
+              <div class="slot-pdf-badge slot-a-badge">PDF</div>
+              <div class="slot-filename" id="slotAFn"></div>
+              <button class="slot-rm-btn" onclick="event.stopPropagation();clearSlot('A')">✕ 移除</button>
+            </div>
+          </div>
+
+          <div class="vs-ring">VS</div>
+
+          <div class="slot slot-b" id="slotB">
+            <input type="file" id="fileB" accept=".pdf" style="display:none">
+            <div class="slot-idle" id="slotBIdle">
+              <div class="slot-big-ico">📄</div>
+              <div class="slot-label">文件 B</div>
+              <div class="slot-hint">點擊或拖曳 PDF</div>
+            </div>
+            <div class="slot-filled" id="slotBFill" style="display:none">
+              <div class="slot-pdf-badge slot-b-badge">PDF</div>
+              <div class="slot-filename" id="slotBFn"></div>
+              <button class="slot-rm-btn" onclick="event.stopPropagation();clearSlot('B')">✕ 移除</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Name fields -->
+        <div class="name-row">
+          <div class="name-field">
+            <label class="name-lbl">文件 A 名稱</label>
+            <input type="text" id="nameA" class="name-inp name-inp-a" placeholder="例：2024 Q3 活動報告">
+          </div>
+          <div class="name-field">
+            <label class="name-lbl">文件 B 名稱</label>
+            <input type="text" id="nameB" class="name-inp name-inp-b" placeholder="例：2024 Q4 活動報告">
+          </div>
+        </div>
+
+        <button class="go-btn" id="goBtn" disabled onclick="doUploadCompare()">
+          ✦ &nbsp;上傳並開始比較
+        </button>
+
+        <div class="upload-status" id="uploadStatus" style="display:none"></div>
+      </div>
+    </div>
+
+    <!-- ② Compare Results -->
+    <div class="block blk-compare">
+      <div class="blk-hd">
+        <span class="blk-ico">🔍</span>
+        <div class="blk-hd-text">
+          <div class="blk-title">比較差異</div>
+          <div class="blk-sub">活動內容變更一覽</div>
+        </div>
+        <span class="comp-result-badge" id="compBadge" style="display:none"></span>
+      </div>
+      <div class="blk-bd" id="compareBody">
+        <div class="placeholder">
+          <div class="ph-ico">🔍</div>
+          <div class="ph-title">等待比較</div>
+          <div class="ph-desc">上傳兩份 PDF 或從歷史記錄<br>選取兩筆記錄後開始比較</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ③ History -->
+    <div class="block blk-history">
+      <div class="blk-hd">
+        <span class="blk-ico">📚</span>
+        <div class="blk-hd-text">
+          <div class="blk-title">歷史記錄</div>
+          <div class="blk-sub" id="histSub">查詢過去上傳的所有文件</div>
+        </div>
+        <button class="hist-cmp-btn" id="histCmpBtn" onclick="doHistCompare()" style="display:none">
+          ⇌ 比較
+        </button>
+      </div>
+      <div class="blk-bd">
+        <div class="hist-toolbar">
+          <div class="hist-search">
+            <span class="search-ico-sm">🔍</span>
+            <input type="text" id="histSearch" class="hist-search-inp" placeholder="搜尋名稱或備註…">
+          </div>
+        </div>
+        <div class="hist-list" id="histList">
+          <div class="placeholder" style="min-height:120px">
+            <div class="ph-ico">📂</div>
+            <div class="ph-title">尚無記錄</div>
+            <div class="ph-desc">請先上傳 PDF 文件</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ④ Suggestions -->
+    <div class="block blk-suggest">
+      <div class="blk-hd">
+        <span class="blk-ico">💡</span>
+        <div class="blk-hd-text">
+          <div class="blk-title">活動賣點分析</div>
+          <div class="blk-sub">點擊「複製」可直接分享</div>
+        </div>
+      </div>
+      <div class="blk-bd" id="suggestBody">
+        <!-- Loaded on init -->
+      </div>
+    </div>
+
+  </div><!-- /grid -->
+</div><!-- /app -->
+
+<div id="toast" class="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>
