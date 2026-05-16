@@ -296,11 +296,22 @@ function parseRowData(row, colMap) {
   const hasMap = colMap.originalPrice >= 0 || colMap.memberPrice >= 0 || colMap.promoPrice >= 0 || colMap.discount >= 0;
 
   if (hasMap) {
-    // Only keep a cell value as a price if it actually contains a numeric amount (3+ consecutive digits)
-    const toPrice = s => /\d{3,}/.test(String(s || '').replace(/,/g, '')) ? (s || '') : '';
+    // Only keep a cell value as a price if it looks like a numeric amount:
+    // - No Chinese characters (rejects gift descriptions like "配件金$3,000")
+    // - Has 3+ consecutive digits
+    // - At least 50% of meaningful characters are digits (rejects product codes like MXTF3ZP/A)
+    const toPrice = s => {
+      const str = String(s || '').trim();
+      if (!str) return '';
+      if (/[一-鿿]/.test(str)) return '';                          // Chinese text → not a price
+      if (!/\d{3,}/.test(str.replace(/,/g, ''))) return '';               // No 3+ digit run → not a price
+      const core = str.replace(/[\s,.$＄NT元\-＋+]/g, '');
+      if (core.length > 0 && core.replace(/[^0-9]/g, '').length / core.length < 0.5) return ''; // < 50% digits → product code
+      return str;
+    };
 
     // Gift: use dedicated column if found; otherwise scan remaining cells for gift keywords
-    const GIFT_KW = ['保護貼', '保護殼', '插頭', '轉接線', '傳輸線', '充電線', '贈品', '附贈', '加贈', '免費', '贈送', '禮'];
+    const GIFT_KW = ['保護貼', '保護殼', '配件金', '抵用金', '禮券', '加碼', '折抵', '插頭', '轉接線', '傳輸線', '充電線', '贈品', '附贈', '加贈', '免費', '贈送', '禮'];
     let giftVal = '';
     if (colMap.gift >= 0) {
       giftVal = cells[colMap.gift] || '';
@@ -327,7 +338,7 @@ function parseRowData(row, colMap) {
   }
 
   // Heuristic extraction
-  const GIFT_KWORDS = ['保護貼', '保護殼', '插頭', '轉接線', '傳輸線', '充電線', '贈品', '附贈', '加贈', '免費', '贈送', '禮'];
+  const GIFT_KWORDS = ['保護貼', '保護殼', '配件金', '抵用金', '禮券', '加碼', '折抵', '插頭', '轉接線', '傳輸線', '充電線', '贈品', '附贈', '加贈', '免費', '贈送', '禮'];
   const prices = [], discounts = [], nameParts = [], giftParts = [];
   cells.forEach(c => {
     if (!c) return;
@@ -642,7 +653,7 @@ function compareRowPair(dA, dB) {
     if (pA < pB) { reason = `A 省 ${diff}`; winner = 'A'; }
     else          { reason = `B 省 ${diff}`; winner = 'B'; }
   } else if (pA || pB) {
-    reason = '售價相同';
+    reason = '售價相同（贈品活動）';
   }
 
   // Gift as tiebreaker
