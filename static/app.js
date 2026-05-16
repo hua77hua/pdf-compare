@@ -614,20 +614,79 @@ function compareRowPair(rowA, rowB) {
 // ═══════════════════════════════════════════════
 //  BLOCK 4 — SUGGESTIONS
 // ═══════════════════════════════════════════════
+function generateProductSuggestions(compData) {
+  const { table_diff } = compData;
+  const tableData = extractTablePairs(table_diff);
+
+  const priceWins = [];    // { name, winner, reason }
+  const newItems  = [];    // { name, priceStr }
+  const removedItems = []; // { name }
+
+  for (const { header, pairs } of tableData) {
+    const colMap   = detectColMap(header);
+    const rematched = rematchPairsByName(pairs, colMap);
+
+    for (const p of rematched) {
+      const dA = parseRowData(p.rowA, colMap);
+      const dB = parseRowData(p.rowB, colMap);
+      const name = (dA?.name || dB?.name || '').trim();
+      if (!name || /^[\d,]+$/.test(name)) continue;
+
+      if (p.status === 'only-b') {
+        const pr = dB?.promoPrice || dB?.memberPrice || '';
+        newItems.push({ name, priceStr: pr ? `促銷價 $${pr}` : '' });
+      } else if (p.status === 'only-a') {
+        removedItems.push({ name });
+      } else if (p.status === 'changed') {
+        const an = compareRowPair(p.rowA, p.rowB);
+        if (an.winner) priceWins.push({ name, winner: an.winner, reason: an.reason });
+      }
+    }
+  }
+
+  const cards = [];
+
+  for (const c of priceWins.slice(0, 5)) {
+    const icon  = c.winner === 'A' ? '🔴' : '🔵';
+    const label = c.winner === 'A' ? 'A 活動' : 'B 活動';
+    cards.push({
+      tag:   '品相推薦',
+      color: c.winner === 'A' ? 'orange' : 'blue',
+      text:  `${icon} ${c.name}：${c.reason}，建議選 ${label}`,
+    });
+  }
+
+  for (const item of newItems.slice(0, 3)) {
+    cards.push({
+      tag:   '新增品項',
+      color: 'purple',
+      text:  `🆕 ${item.name}${item.priceStr ? '，' + item.priceStr : ''}（B 活動新增，可向客戶推薦）`,
+    });
+  }
+
+  if (removedItems.length) {
+    const names = removedItems.slice(0, 3).map(r => r.name).join('、');
+    cards.push({
+      tag:   '下架提醒',
+      color: 'orange',
+      text:  `⚠️ 下架品項請勿推薦：${names}${removedItems.length > 3 ? ' 等' : ''}`,
+    });
+  }
+
+  if (cards.length === 0) {
+    cards.push({
+      tag:   '活動相同',
+      color: 'blue',
+      text:  `✓ 兩份活動條件完全相同，所有品項優惠不變`,
+    });
+  }
+
+  return cards;
+}
+
 async function fetchSuggestions(compData) {
   try {
-    const res  = await fetch(`${API}/suggestions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        table_diff:   compData.table_diff,
-        record1_name: compData.record1.name,
-        record2_name: compData.record2.name,
-        has_changes:  compData.has_changes,
-      }),
-    });
-    const data = await res.json();
-    renderSuggestions(data.suggestions || []);
+    renderSuggestions(generateProductSuggestions(compData));
   } catch { showDefaultSuggestions(); }
 }
 
