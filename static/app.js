@@ -243,10 +243,10 @@ function countTabPairs(tableData, tabKey) {
 
 // ── Column detection from header row ───────────
 function detectColMap(headerRow) {
-  const map = { name: 0, capacity: -1, originalPrice: -1, memberPrice: -1, discount: -1, promoPrice: -1, gift: -1 };
+  const map = { name: -1, capacity: -1, originalPrice: -1, memberPrice: -1, discount: -1, promoPrice: -1, gift: -1 };
   (headerRow || []).forEach((cell, i) => {
     const c = String(cell || '').toLowerCase();
-    if (/品名|機型|型號|model|product/.test(c)               && map.name === 0)          map.name          = i;
+    if (/品名|機型|型號|model|product/.test(c)               && map.name < 0)            map.name          = i;
     if (/容量|儲存|storage|規格/.test(c)                     && map.capacity < 0)        map.capacity      = i;
     if (/促銷|最終|特惠|final|promo|活動價格|活動最終/.test(c) && map.promoPrice < 0)     map.promoPrice    = i;
     if (/折讓|折扣|discount/.test(c)                         && map.discount < 0)        map.discount      = i;
@@ -296,6 +296,9 @@ function parseRowData(row, colMap) {
   const hasMap = colMap.originalPrice >= 0 || colMap.memberPrice >= 0 || colMap.promoPrice >= 0 || colMap.discount >= 0;
 
   if (hasMap) {
+    // Only keep a cell value as a price if it actually contains a numeric amount (3+ consecutive digits)
+    const toPrice = s => /\d{3,}/.test(String(s || '').replace(/,/g, '')) ? (s || '') : '';
+
     // Gift: use dedicated column if found; otherwise scan remaining cells for gift keywords
     const GIFT_KW = ['保護貼', '保護殼', '插頭', '轉接線', '傳輸線', '充電線', '贈品', '附贈', '加贈', '免費', '贈送', '禮'];
     let giftVal = '';
@@ -315,10 +318,10 @@ function parseRowData(row, colMap) {
     return {
       name:          colMap.name          >= 0 ? (cells[colMap.name]          || '') : (cells[0] || ''),
       capacity:      colMap.capacity      >= 0 ? (cells[colMap.capacity]      || '') : '',
-      originalPrice: colMap.originalPrice >= 0 ? (cells[colMap.originalPrice] || '') : '',
-      memberPrice:   colMap.memberPrice   >= 0 ? (cells[colMap.memberPrice]   || '') : '',
+      originalPrice: toPrice(colMap.originalPrice >= 0 ? cells[colMap.originalPrice] : ''),
+      memberPrice:   toPrice(colMap.memberPrice   >= 0 ? cells[colMap.memberPrice]   : ''),
       discount:      colMap.discount      >= 0 ? (cells[colMap.discount]      || '') : '',
-      promoPrice:    colMap.promoPrice    >= 0 ? (cells[colMap.promoPrice]    || '') : '',
+      promoPrice:    toPrice(colMap.promoPrice    >= 0 ? cells[colMap.promoPrice]    : ''),
       gift:          giftVal,
     };
   }
