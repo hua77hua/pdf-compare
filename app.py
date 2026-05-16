@@ -342,6 +342,8 @@ def get_suggestions():
     return jsonify({'suggestions': cards})
 
 
+init_db()
+
 if __name__ == '__main__':
     init_db()
     print('🚀 伺服器啟動中... 請在瀏覽器開啟 http://localhost:5001')
