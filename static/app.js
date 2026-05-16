@@ -248,11 +248,43 @@ function detectColMap(headerRow) {
     const c = String(cell || '').toLowerCase();
     if (/品名|機型|型號|model|product/.test(c) && map.name === 0) map.name = i;
     if (/容量|儲存|storage|規格/.test(c)        && map.capacity < 0)    map.capacity    = i;
-    if (/促銷|最終|特惠|final|promo/.test(c)    && map.promoPrice < 0)  map.promoPrice  = i;
+    if (/促銷|最終|特惠|final|promo|活動價格|活動最終/.test(c) && map.promoPrice < 0)  map.promoPrice  = i;
     if (/折讓|折扣|discount/.test(c)            && map.discount < 0)    map.discount    = i;
     if (/活動.*價|會員.*價|售價|原價/.test(c)   && map.memberPrice < 0) map.memberPrice = i;
   });
   return map;
+}
+
+// ── Product key for name-based row matching ──────
+function productKey(row, colMap) {
+  if (!row) return '';
+  const cells = row.map(c => String(c ?? '').trim());
+  const nameIdx = (colMap && colMap.name >= 0) ? colMap.name : 0;
+  const capIdx  = (colMap && colMap.capacity >= 0) ? colMap.capacity : -1;
+  const name = cells[nameIdx] || '';
+  const cap  = (capIdx >= 0 && capIdx !== nameIdx) ? (cells[capIdx] || '') : '';
+  const key  = (cap && cap !== name) ? `${name}__${cap}` : name;
+  return (!key || /^[\d,]+$/.test(key)) ? '' : key;
+}
+
+// Re-match row pairs by product name to fix positional mismatch from difflib
+function rematchPairsByName(pairs, colMap) {
+  const aMap = new Map(), bMap = new Map();
+  const keyOrder = [], seen = new Set();
+
+  const addKey = k => { if (k && !seen.has(k)) { keyOrder.push(k); seen.add(k); } };
+
+  for (const p of pairs) {
+    if (p.rowA) { const k = productKey(p.rowA, colMap); addKey(k); if (k) aMap.set(k, p.rowA); }
+    if (p.rowB) { const k = productKey(p.rowB, colMap); addKey(k); if (k) bMap.set(k, p.rowB); }
+  }
+
+  return keyOrder.map(k => {
+    const rowA = aMap.get(k) ?? null, rowB = bMap.get(k) ?? null;
+    const status = !rowA ? 'only-b' : !rowB ? 'only-a'
+      : JSON.stringify(rowA) === JSON.stringify(rowB) ? 'same' : 'changed';
+    return { rowA, rowB, status };
+  });
 }
 
 // ── Parse a row into structured fields ──────────
@@ -373,13 +405,14 @@ function renderDeviceTabContent(tabKey, tableData) {
   const colMap   = detectColMap(tabTables[0]?.header || []);
   const tabColor = tab?.color || '#6b7280';
 
+  // Re-match all pairs by product name to fix positional mismatch from difflib
+  const rematched = rematchPairsByName(tabTables.flatMap(t => t.pairs), colMap);
+
   // Collect unique model names for dropdown
   const models = new Set();
-  for (const { pairs } of tabTables) {
-    for (const p of pairs) {
-      const name = getProductName(p.rowA || p.rowB, colMap);
-      if (name) models.add(name);
-    }
+  for (const p of rematched) {
+    const name = getProductName(p.rowA || p.rowB, colMap);
+    if (name) models.add(name);
   }
 
   let html = `<div class="tab-content" style="border-color:${tab?.border || '#e5e7eb'}">
@@ -416,8 +449,7 @@ function renderDeviceTabContent(tabKey, tableData) {
 
   let winsA = 0, winsB = 0, sameCnt = 0, totalCmp = 0;
 
-  for (const { pairs } of tabTables) {
-    for (const p of pairs) {
+  for (const p of rematched) {
       // Skip color-only changes
       if (p.status === 'changed' && isColorOnlyDiff(p.rowA, p.rowB)) continue;
 
@@ -483,7 +515,6 @@ function renderDeviceTabContent(tabKey, tableData) {
         <td class="sc-cell sc-b-cell promo-cell${bIsBest ? ' best-price' : ''}">${dB ? (bPromoStr ? esc(bPromoStr) : '<span class="cv-none">—</span>') : '<span class="cv-none">—</span>'}</td>
         <td class="sc-rec-cell ${recCls}">${recHtml}</td>
       </tr>`;
-    }
   }
 
   html += `</tbody></table></div>`;
