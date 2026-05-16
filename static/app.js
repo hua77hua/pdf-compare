@@ -252,7 +252,7 @@ function detectColMap(headerRow) {
     if (/折讓|折扣|discount/.test(c)                         && map.discount < 0)        map.discount      = i;
     if (/原價|定價|建議售/.test(c)                            && map.originalPrice < 0 && i !== map.promoPrice)  map.originalPrice = i;
     if (/活動.*價|會員.*價|售價/.test(c)                      && map.memberPrice < 0 && i !== map.promoPrice && i !== map.originalPrice) map.memberPrice = i;
-    if (/贈品|贈送|附贈|加贈|gift|bonus/.test(c)             && map.gift < 0)            map.gift          = i;
+    if (/贈品|贈送|附贈|加贈|gift|bonus|備品|附件|活動附加/.test(c) && map.gift < 0)            map.gift          = i;
   });
   return map;
 }
@@ -296,6 +296,22 @@ function parseRowData(row, colMap) {
   const hasMap = colMap.originalPrice >= 0 || colMap.memberPrice >= 0 || colMap.promoPrice >= 0 || colMap.discount >= 0;
 
   if (hasMap) {
+    // Gift: use dedicated column if found; otherwise scan remaining cells for gift keywords
+    const GIFT_KW = ['保護貼', '贈品', '附贈', '加贈', '免費', '贈送', '禮'];
+    let giftVal = '';
+    if (colMap.gift >= 0) {
+      giftVal = cells[colMap.gift] || '';
+    } else {
+      const usedIdx = new Set(
+        [colMap.name, colMap.capacity, colMap.originalPrice, colMap.memberPrice, colMap.discount, colMap.promoPrice]
+          .filter(i => i >= 0)
+      );
+      cells.forEach((c, i) => {
+        if (!usedIdx.has(i) && c && GIFT_KW.some(k => c.includes(k)))
+          giftVal += (giftVal ? ' ' : '') + c;
+      });
+    }
+
     return {
       name:          colMap.name          >= 0 ? (cells[colMap.name]          || '') : (cells[0] || ''),
       capacity:      colMap.capacity      >= 0 ? (cells[colMap.capacity]      || '') : '',
@@ -303,7 +319,7 @@ function parseRowData(row, colMap) {
       memberPrice:   colMap.memberPrice   >= 0 ? (cells[colMap.memberPrice]   || '') : '',
       discount:      colMap.discount      >= 0 ? (cells[colMap.discount]      || '') : '',
       promoPrice:    colMap.promoPrice    >= 0 ? (cells[colMap.promoPrice]    || '') : '',
-      gift:          colMap.gift          >= 0 ? (cells[colMap.gift]          || '') : '',
+      gift:          giftVal,
     };
   }
 
