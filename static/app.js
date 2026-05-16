@@ -636,31 +636,54 @@ function isColorOnlyDiff(rowA, rowB) {
   return normalize(rowA) === normalize(rowB);
 }
 
+// Extract numeric credit value from gift text (配件金/抵用金/折抵 only)
+function extractCreditValue(giftStr) {
+  const s = String(giftStr || '');
+  if (!/配件金|抵用金|折抵/.test(s)) return 0;
+  const nums = s.match(/[\d,]{3,}/g);
+  if (!nums) return 0;
+  const val = Math.max(...nums.map(n => parseInt(n.replace(/,/g, ''), 10)));
+  return val >= 100 ? val : 0;
+}
+
 function compareRowPair(dA, dB) {
   const toNum = s => {
     const n = parseInt(String(s || '').replace(/[^0-9]/g, '') || '0');
     return n >= 100 ? n : null;
   };
 
-  // Use the final promotional price; fall back to member price then original price
   const pA = toNum(dA?.promoPrice) || toNum(dA?.memberPrice) || toNum(dA?.originalPrice);
   const pB = toNum(dB?.promoPrice) || toNum(dB?.memberPrice) || toNum(dB?.originalPrice);
 
-  let reason = '', winner = null;
-
-  if (pA && pB && pA !== pB) {
-    const diff = `$${Math.abs(pA - pB).toLocaleString()}`;
-    if (pA < pB) { reason = `A 省 ${diff}`; winner = 'A'; }
-    else          { reason = `B 省 ${diff}`; winner = 'B'; }
-  } else if (pA || pB) {
-    reason = '售價相同（贈品活動）';
-  }
-
-  // Gift as tiebreaker
   const gA = (dA?.gift || '').trim();
   const gB = (dB?.gift || '').trim();
-  if (gA && !gB) { reason += (reason ? '，' : '') + `A 附贈 ${gA}`; if (!winner) winner = 'A'; }
-  if (gB && !gA) { reason += (reason ? '，' : '') + `B 附贈 ${gB}`; if (!winner) winner = 'B'; }
+
+  // Subtract monetary credit (配件金 etc.) from price for effective comparison
+  const creditA = extractCreditValue(gA);
+  const creditB = extractCreditValue(gB);
+  const effA = pA != null ? pA - creditA : null;
+  const effB = pB != null ? pB - creditB : null;
+
+  let reason = '', winner = null;
+
+  if (effA != null && effB != null && effA !== effB) {
+    const diff = `$${Math.abs(effA - effB).toLocaleString()}`;
+    if (effA < effB) {
+      winner = 'A';
+      reason = creditA > 0 ? `A 實質省 ${diff}（含配件金 $${creditA.toLocaleString()}）` : `A 省 ${diff}`;
+    } else {
+      winner = 'B';
+      reason = creditB > 0 ? `B 實質省 ${diff}（含配件金 $${creditB.toLocaleString()}）` : `B 省 ${diff}`;
+    }
+  } else if (pA || pB) {
+    reason = (creditA > 0 || creditB > 0) ? '售價相同（贈品活動）' : '售價相同';
+  }
+
+  // Non-monetary gifts (保護貼/保護殼 etc.) as tiebreaker only
+  const physicalA = gA && creditA === 0;
+  const physicalB = gB && creditB === 0;
+  if (physicalA && !physicalB) { reason += (reason ? '，' : '') + `A 附贈 ${gA}`; if (!winner) winner = 'A'; }
+  if (physicalB && !physicalA) { reason += (reason ? '，' : '') + `B 附贈 ${gB}`; if (!winner) winner = 'B'; }
 
   return { reason, winner };
 }
