@@ -297,7 +297,7 @@ function parseRowData(row, colMap) {
 
   if (hasMap) {
     // Gift: use dedicated column if found; otherwise scan remaining cells for gift keywords
-    const GIFT_KW = ['保護貼', '贈品', '附贈', '加贈', '免費', '贈送', '禮'];
+    const GIFT_KW = ['保護貼', '保護殼', '插頭', '轉接線', '傳輸線', '充電線', '贈品', '附贈', '加贈', '免費', '贈送', '禮'];
     let giftVal = '';
     if (colMap.gift >= 0) {
       giftVal = cells[colMap.gift] || '';
@@ -324,7 +324,7 @@ function parseRowData(row, colMap) {
   }
 
   // Heuristic extraction
-  const GIFT_KWORDS = ['保護貼', '贈品', '附贈', '加贈', '免費', '贈送', '禮'];
+  const GIFT_KWORDS = ['保護貼', '保護殼', '插頭', '轉接線', '傳輸線', '充電線', '贈品', '附贈', '加贈', '免費', '贈送', '禮'];
   const prices = [], discounts = [], nameParts = [], giftParts = [];
   cells.forEach(c => {
     if (!c) return;
@@ -492,7 +492,7 @@ function renderDeviceTabContent(tabKey, tableData) {
       let recHtml = '', recCls = '';
       if (p.rowA && p.rowB) {
         totalCmp++;
-        const an = compareRowPair(p.rowA, p.rowB);
+        const an = compareRowPair(dA, dB);
         if (an.winner === 'A') {
           winsA++;
           recHtml = `<div class="rec-badge rec-a">💡 推薦 A</div>`;
@@ -516,8 +516,9 @@ function renderDeviceTabContent(tabKey, tableData) {
       }
 
       // Highlight which side has the better promo price
-      const pA = lowestPrice(extractNums(p.rowA));
-      const pB = lowestPrice(extractNums(p.rowB));
+      const toNum = s => { const n = parseInt(String(s || '').replace(/[^0-9]/g, '') || '0'); return n >= 100 ? n : null; };
+      const pA = toNum(dA?.promoPrice) || toNum(dA?.memberPrice);
+      const pB = toNum(dB?.promoPrice) || toNum(dB?.memberPrice);
       const aIsBest = pA && pB && pA < pB;
       const bIsBest = pA && pB && pB < pA;
 
@@ -621,12 +622,15 @@ function isColorOnlyDiff(rowA, rowB) {
   return normalize(rowA) === normalize(rowB);
 }
 
-function compareRowPair(rowA, rowB) {
-  const nA = extractNums(rowA), nB = extractNums(rowB);
-  const pA = lowestPrice(nA),   pB = lowestPrice(nB);
-  const dA = nA.filter(n => n < 0).reduce((s, n) => s + n, 0);
-  const dB = nB.filter(n => n < 0).reduce((s, n) => s + n, 0);
-  const gA = isPromo(rowA), gB = isPromo(rowB);
+function compareRowPair(dA, dB) {
+  const toNum = s => {
+    const n = parseInt(String(s || '').replace(/[^0-9]/g, '') || '0');
+    return n >= 100 ? n : null;
+  };
+
+  // Use the final promotional price; fall back to member price then original price
+  const pA = toNum(dA?.promoPrice) || toNum(dA?.memberPrice) || toNum(dA?.originalPrice);
+  const pB = toNum(dB?.promoPrice) || toNum(dB?.memberPrice) || toNum(dB?.originalPrice);
 
   let reason = '', winner = null;
 
@@ -634,16 +638,15 @@ function compareRowPair(rowA, rowB) {
     const diff = `$${Math.abs(pA - pB).toLocaleString()}`;
     if (pA < pB) { reason = `A 省 ${diff}`; winner = 'A'; }
     else          { reason = `B 省 ${diff}`; winner = 'B'; }
-  } else if (dA !== dB && (dA !== 0 || dB !== 0)) {
-    const diff = `$${Math.abs(dA - dB).toLocaleString()}`;
-    if (dA < dB) { reason = `A 折扣多 ${diff}`; winner = 'A'; }
-    else          { reason = `B 折扣多 ${diff}`; winner = 'B'; }
   } else if (pA || pB) {
     reason = '售價相同';
   }
 
-  if (gA && !gB) { reason += (reason ? '，' : '') + 'A 有贈品'; if (!winner) winner = 'A'; }
-  if (gB && !gA) { reason += (reason ? '，' : '') + 'B 有贈品'; if (!winner) winner = 'B'; }
+  // Gift as tiebreaker
+  const gA = (dA?.gift || '').trim();
+  const gB = (dB?.gift || '').trim();
+  if (gA && !gB) { reason += (reason ? '，' : '') + `A 附贈 ${gA}`; if (!winner) winner = 'A'; }
+  if (gB && !gA) { reason += (reason ? '，' : '') + `B 附贈 ${gB}`; if (!winner) winner = 'B'; }
 
   return { reason, winner };
 }
@@ -675,7 +678,7 @@ function generateProductSuggestions(compData) {
       } else if (p.status === 'only-a') {
         removedItems.push({ name });
       } else if (p.status === 'changed') {
-        const an = compareRowPair(p.rowA, p.rowB);
+        const an = compareRowPair(dA, dB);
         if (an.winner) priceWins.push({ name, winner: an.winner, reason: an.reason });
       }
     }
