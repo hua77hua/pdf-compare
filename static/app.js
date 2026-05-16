@@ -243,14 +243,16 @@ function countTabPairs(tableData, tabKey) {
 
 // ── Column detection from header row ───────────
 function detectColMap(headerRow) {
-  const map = { name: 0, capacity: -1, memberPrice: -1, discount: -1, promoPrice: -1 };
+  const map = { name: 0, capacity: -1, originalPrice: -1, memberPrice: -1, discount: -1, promoPrice: -1, gift: -1 };
   (headerRow || []).forEach((cell, i) => {
     const c = String(cell || '').toLowerCase();
-    if (/品名|機型|型號|model|product/.test(c) && map.name === 0) map.name = i;
-    if (/容量|儲存|storage|規格/.test(c)        && map.capacity < 0)    map.capacity    = i;
-    if (/促銷|最終|特惠|final|promo|活動價格|活動最終/.test(c) && map.promoPrice < 0)  map.promoPrice  = i;
-    if (/折讓|折扣|discount/.test(c)            && map.discount < 0)    map.discount    = i;
-    if (/活動.*價|會員.*價|售價|原價/.test(c)   && map.memberPrice < 0) map.memberPrice = i;
+    if (/品名|機型|型號|model|product/.test(c)               && map.name === 0)          map.name          = i;
+    if (/容量|儲存|storage|規格/.test(c)                     && map.capacity < 0)        map.capacity      = i;
+    if (/促銷|最終|特惠|final|promo|活動價格|活動最終/.test(c) && map.promoPrice < 0)     map.promoPrice    = i;
+    if (/折讓|折扣|discount/.test(c)                         && map.discount < 0)        map.discount      = i;
+    if (/原價|定價|建議售/.test(c)                            && map.originalPrice < 0 && i !== map.promoPrice)  map.originalPrice = i;
+    if (/活動.*價|會員.*價|售價/.test(c)                      && map.memberPrice < 0 && i !== map.promoPrice && i !== map.originalPrice) map.memberPrice = i;
+    if (/贈品|贈送|附贈|加贈|gift|bonus/.test(c)             && map.gift < 0)            map.gift          = i;
   });
   return map;
 }
@@ -291,25 +293,29 @@ function rematchPairsByName(pairs, colMap) {
 function parseRowData(row, colMap) {
   if (!row) return null;
   const cells = row.map(c => String(c ?? '').trim());
-  const hasMap = colMap.memberPrice >= 0 || colMap.promoPrice >= 0 || colMap.discount >= 0;
+  const hasMap = colMap.originalPrice >= 0 || colMap.memberPrice >= 0 || colMap.promoPrice >= 0 || colMap.discount >= 0;
 
   if (hasMap) {
     return {
-      name:        colMap.name        >= 0 ? (cells[colMap.name]        || '') : (cells[0] || ''),
-      capacity:    colMap.capacity    >= 0 ? (cells[colMap.capacity]    || '') : '',
-      memberPrice: colMap.memberPrice >= 0 ? (cells[colMap.memberPrice] || '') : '',
-      discount:    colMap.discount    >= 0 ? (cells[colMap.discount]    || '') : '',
-      promoPrice:  colMap.promoPrice  >= 0 ? (cells[colMap.promoPrice]  || '') : '',
+      name:          colMap.name          >= 0 ? (cells[colMap.name]          || '') : (cells[0] || ''),
+      capacity:      colMap.capacity      >= 0 ? (cells[colMap.capacity]      || '') : '',
+      originalPrice: colMap.originalPrice >= 0 ? (cells[colMap.originalPrice] || '') : '',
+      memberPrice:   colMap.memberPrice   >= 0 ? (cells[colMap.memberPrice]   || '') : '',
+      discount:      colMap.discount      >= 0 ? (cells[colMap.discount]      || '') : '',
+      promoPrice:    colMap.promoPrice    >= 0 ? (cells[colMap.promoPrice]    || '') : '',
+      gift:          colMap.gift          >= 0 ? (cells[colMap.gift]          || '') : '',
     };
   }
 
   // Heuristic extraction
-  const prices = [], discounts = [], nameParts = [];
+  const GIFT_KWORDS = ['保護貼', '贈品', '附贈', '加贈', '免費', '贈送', '禮'];
+  const prices = [], discounts = [], nameParts = [], giftParts = [];
   cells.forEach(c => {
     if (!c) return;
     if (/^[-－][\d,]+$/.test(c)) { discounts.push(c); return; }
     const numVal = parseInt(c.replace(/[^0-9]/g, '') || '0');
     if (numVal >= 5000) { prices.push({ raw: c, val: numVal }); return; }
+    if (GIFT_KWORDS.some(k => c.includes(k))) { giftParts.push(c); return; }
     nameParts.push(c);
   });
   prices.sort((a, b) => b.val - a.val);
@@ -318,11 +324,13 @@ function parseRowData(row, colMap) {
   const cap    = capIdx >= 0 ? nameParts.splice(capIdx, 1)[0] : '';
 
   return {
-    name:        nameParts[0] || '',
-    capacity:    cap,
-    memberPrice: prices[0]?.raw || '',
-    discount:    discounts[0] || '',
-    promoPrice:  prices[prices.length - 1]?.raw || prices[0]?.raw || '',
+    name:          nameParts[0] || '',
+    capacity:      cap,
+    originalPrice: prices[0]?.raw || '',
+    memberPrice:   prices.length > 2 ? (prices[1]?.raw || '') : '',
+    discount:      discounts[0] || '',
+    promoPrice:    prices[prices.length - 1]?.raw || prices[0]?.raw || '',
+    gift:          giftParts.join(' ') || '',
   };
 }
 
@@ -432,17 +440,21 @@ function renderDeviceTabContent(tabKey, tableData) {
       <thead>
         <tr>
           <th class="sc-name" rowspan="2">品名 / 容量</th>
-          <th colspan="3" class="sc-doc-hd sc-a-hd">📄 ${esc(lastCompRecNames[0])}</th>
-          <th colspan="3" class="sc-doc-hd sc-b-hd">📄 ${esc(lastCompRecNames[1])}</th>
+          <th colspan="5" class="sc-doc-hd sc-a-hd">📄 ${esc(lastCompRecNames[0])}</th>
+          <th colspan="5" class="sc-doc-hd sc-b-hd">📄 ${esc(lastCompRecNames[1])}</th>
           <th class="sc-rec" rowspan="2">推薦</th>
         </tr>
         <tr>
-          <th class="sc-sub sc-a-sub">活動會員價</th>
-          <th class="sc-sub sc-a-sub">折讓額</th>
+          <th class="sc-sub sc-a-sub">原始價格</th>
+          <th class="sc-sub sc-a-sub">活動價格</th>
+          <th class="sc-sub sc-a-sub">折讓</th>
           <th class="sc-sub sc-a-sub">促銷價</th>
-          <th class="sc-sub sc-b-sub">活動會員價</th>
-          <th class="sc-sub sc-b-sub">折讓額</th>
+          <th class="sc-sub sc-a-sub gift-hd">活動贈品</th>
+          <th class="sc-sub sc-b-sub">原始價格</th>
+          <th class="sc-sub sc-b-sub">活動價格</th>
+          <th class="sc-sub sc-b-sub">折讓</th>
           <th class="sc-sub sc-b-sub">促銷價</th>
+          <th class="sc-sub sc-b-sub gift-hd">活動贈品</th>
         </tr>
       </thead>
       <tbody>`;
@@ -504,15 +516,24 @@ function renderDeviceTabContent(tabKey, tableData) {
 
       const aPromoStr = dA?.promoPrice || '';
       const bPromoStr = dB?.promoPrice || '';
+      const giftA     = dA?.gift || '';
+      const giftB     = dB?.gift || '';
+      const giftDiff  = p.rowA && p.rowB && giftA !== giftB;
+
+      const cv = v => v ? esc(v) : '<span class="cv-none">—</span>';
 
       html += `<tr class="${trCls}">
         <td class="sc-name-cell">${nameCell || '<span class="cv-none">—</span>'}</td>
-        <td class="sc-cell sc-a-cell">${dA ? (dA.memberPrice ? esc(dA.memberPrice) : '<span class="cv-none">—</span>') : '<span class="cv-none">—</span>'}</td>
-        <td class="sc-cell sc-a-cell disc-cell">${dA ? (dA.discount ? esc(dA.discount) : '<span class="cv-none">—</span>') : '<span class="cv-none">—</span>'}</td>
-        <td class="sc-cell sc-a-cell promo-cell${aIsBest ? ' best-price' : ''}">${dA ? (aPromoStr ? esc(aPromoStr) : '<span class="cv-none">—</span>') : '<span class="cv-none">—</span>'}</td>
-        <td class="sc-cell sc-b-cell">${dB ? (dB.memberPrice ? esc(dB.memberPrice) : '<span class="cv-none">—</span>') : '<span class="cv-none">—</span>'}</td>
-        <td class="sc-cell sc-b-cell disc-cell">${dB ? (dB.discount ? esc(dB.discount) : '<span class="cv-none">—</span>') : '<span class="cv-none">—</span>'}</td>
-        <td class="sc-cell sc-b-cell promo-cell${bIsBest ? ' best-price' : ''}">${dB ? (bPromoStr ? esc(bPromoStr) : '<span class="cv-none">—</span>') : '<span class="cv-none">—</span>'}</td>
+        <td class="sc-cell sc-a-cell orig-cell">${dA ? cv(dA.originalPrice) : '<span class="cv-none">—</span>'}</td>
+        <td class="sc-cell sc-a-cell">${dA ? cv(dA.memberPrice) : '<span class="cv-none">—</span>'}</td>
+        <td class="sc-cell sc-a-cell disc-cell">${dA ? cv(dA.discount) : '<span class="cv-none">—</span>'}</td>
+        <td class="sc-cell sc-a-cell promo-cell${aIsBest ? ' best-price' : ''}">${dA ? cv(aPromoStr) : '<span class="cv-none">—</span>'}</td>
+        <td class="sc-cell sc-a-cell gift-cell${giftDiff && giftA ? ' gift-diff' : ''}">${dA ? cv(giftA) : '<span class="cv-none">—</span>'}</td>
+        <td class="sc-cell sc-b-cell orig-cell">${dB ? cv(dB.originalPrice) : '<span class="cv-none">—</span>'}</td>
+        <td class="sc-cell sc-b-cell">${dB ? cv(dB.memberPrice) : '<span class="cv-none">—</span>'}</td>
+        <td class="sc-cell sc-b-cell disc-cell">${dB ? cv(dB.discount) : '<span class="cv-none">—</span>'}</td>
+        <td class="sc-cell sc-b-cell promo-cell${bIsBest ? ' best-price' : ''}">${dB ? cv(bPromoStr) : '<span class="cv-none">—</span>'}</td>
+        <td class="sc-cell sc-b-cell gift-cell${giftDiff && giftB ? ' gift-diff' : ''}">${dB ? cv(giftB) : '<span class="cv-none">—</span>'}</td>
         <td class="sc-rec-cell ${recCls}">${recHtml}</td>
       </tr>`;
   }

@@ -564,7 +564,7 @@ tr.r-removed .dmarker { color: #f43f5e; }
 .tscroll { overflow-x: auto; }
 table.struct-tbl {
   width: 100%; border-collapse: collapse; font-size: 12px;
-  min-width: 720px;
+  min-width: 1060px;
 }
 table.struct-tbl th {
   padding: 8px 12px; background: #f9fafb; border-bottom: 1px solid #ebebeb;
@@ -647,7 +647,14 @@ tr.row-chg td.sc-b-cell { background: rgba(219,39,119,.05); }
 }
 
 /* Misc reused */
-.cv-none  { color: #d1d5db; font-size: 13px; }
+.cv-none   { color: #d1d5db; font-size: 13px; }
+.orig-cell { color: #6b7280 !important; font-size: 12px; }
+.gift-cell {
+  font-size: 11px; color: #047857; max-width: 130px;
+  word-break: break-word; line-height: 1.4; text-align: left !important;
+}
+.gift-hd   { color: #047857 !important; }
+.gift-diff { background: rgba(234,179,8,.12) !important; }
 
 /* ═══════════════════════════════════════════════
    SHARED: PLACEHOLDER, LOADING, TOAST
