@@ -362,6 +362,7 @@ tr.r-removed .dmarker { color: #f43f5e; }
 .hist-name { font-size: 13px; font-weight: 600; color: #1f2937; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hist-date { font-size: 11px; color: #9ca3af; margin-top: 2px; }
 .hist-note { font-size: 11px; color: #6b7280; margin-top: 1px; font-style: italic; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.no-data-badge { font-size: 10px; font-weight: 700; color: #dc2626; background: #fee2e2; border-radius: 4px; padding: 1px 5px; margin-left: 4px; vertical-align: middle; }
 
 .sel-badge {
   font-size: 10px; font-weight: 800; padding: 2px 9px; border-radius: 8px;

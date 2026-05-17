@@ -7,15 +7,34 @@ let allRecords  = [];
 let sugTexts    = [];
 let lastCompData     = null;
 let lastCompRecNames = ['文件A', '文件B'];
-let activeDeviceTab  = 'iPhone';
+let activeDeviceTab  = 'all';
 let activeModelFilter = 'all';
 
 const DEVICE_TABS = [
+  { key: 'all',    label: '全部產品',   icon: '📋', color: '#374151', bg: '#f9fafb', border: '#d1d5db', keys: [] },
   { key: 'iPhone', label: 'iPhone',      icon: '📱', color: '#007AFF', bg: '#eff6ff', border: '#bfdbfe', keys: ['iPhone'] },
   { key: 'iPad',   label: 'iPad',        icon: '📲', color: '#5856D6', bg: '#f5f3ff', border: '#ddd6fe', keys: ['iPad'] },
-  { key: 'Mac',    label: 'Mac',         icon: '💻', color: '#34C759', bg: '#f0fdf4', border: '#bbf7d0', keys: ['Mac', 'MacBook', 'iMac'] },
-  { key: 'Watch',  label: 'Apple Watch', icon: '⌚', color: '#FF3B30', bg: '#fff1f2', border: '#fecdd3', keys: ['Watch', 'Apple Watch'] },
+  { key: 'Mac',    label: 'Mac',         icon: '💻', color: '#34C759', bg: '#f0fdf4', border: '#bbf7d0', keys: ['Mac', 'MacBook', 'iMac', 'MBA', 'MBP'] },
+  { key: 'Watch',  label: 'Apple Watch', icon: '⌚', color: '#FF3B30', bg: '#fff1f2', border: '#fecdd3', keys: ['Watch', 'Apple Watch', 'AW '] },
   { key: '配件',   label: '配件',         icon: '🔌', color: '#8B5CF6', bg: '#faf5ff', border: '#e9d5ff', keys: [] },
+];
+
+// Accessory-type keywords: rows matching any of these are always 配件,
+// even if they also contain a device name (e.g. "iPad Pro 巧控鍵盤", "iPhone 16 保護殼")
+const ACCESSORY_KWORDS = [
+  '保護殼', '保護貼', '保護膜',            // cases / screen protectors
+  '鍵盤', 'Keyboard', 'keyboard',          // keyboards (巧控鍵盤, Magic Keyboard)
+  '雙面夾',                                 // Smart Folio / Smart Case (聰穎雙面夾)
+  '卡套', '卡夾',                           // card cases
+  '掛繩', '斜背',                           // crossbody / wrist straps
+  '線材', '傳輸線', '充電線', '編織線',     // cables
+  '對Lightning', '對USB',                   // cable connectors
+  '防護邊框',                               // bumper cases
+  'Apple Pencil',                           // stylus + accessories
+  'AirPods', 'AirTag',                      // audio / tracking
+  'Beats',                                  // Beats headphones
+  'MagSafe',                                // MagSafe accessories
+  '耳機', '音箱', '喇叭',                   // headphones / speakers
 ];
 
 const PROMO_KEYS  = ['優惠', '折扣', '特價', '贈品', '限時', '促銷', '免費', '贈送', '禮'];
@@ -154,7 +173,7 @@ async function runCompare(id1, id2) {
   if (!res.ok) throw new Error(data.error || '比較失敗');
   lastCompData     = data;
   lastCompRecNames = [data.record1.name, data.record2.name];
-  activeDeviceTab  = 'iPhone';
+  activeDeviceTab  = 'all';
   activeModelFilter = 'all';
   renderCompResult(data);
   await fetchSuggestions(data);
@@ -163,15 +182,18 @@ async function runCompare(id1, id2) {
 // ── Device tab detection ────────────────────────
 function detectDeviceTab(row) {
   const text = (row || []).map(c => c || '').join(' ');
-  for (const tab of DEVICE_TABS.slice(0, 4)) {
+  // Accessory-type keywords take priority — "iPad Pro 巧控鍵盤" → 配件, not iPad
+  if (ACCESSORY_KWORDS.some(k => text.includes(k))) return '配件';
+  // Then check named device tabs
+  for (const tab of DEVICE_TABS.filter(t => t.keys.length > 0)) {
     if (tab.keys.some(k => text.includes(k))) return tab.key;
   }
-  return null; // falls into 配件
+  return null; // no keyword match → row belongs to dominant table tab
 }
 
 function rowMatchesTab(row, tabKey) {
   const det = detectDeviceTab(row);
-  return tabKey === '配件' ? !det : det === tabKey;
+  return tabKey === '配件' ? (det === '配件' || det === null) : det === tabKey;
 }
 
 // ── Extract pairs from table_diff ───────────────
@@ -228,17 +250,48 @@ function extractTablePairs(tableDiff) {
 }
 
 function getPairsForTab(tableData, tabKey) {
+  // 'all' tab: return every pair from every table
+  if (tabKey === 'all') return tableData.map(({ header, pairs }) => ({ header, pairs }));
+
   const result = [];
   for (const { header, pairs } of tableData) {
-    const filtered = pairs.filter(p => rowMatchesTab(p.rowA || p.rowB, tabKey));
+    // Detect dominant device: check header first, then any explicitly detected row wins over 配件
+    const headerDet = detectDeviceTab(header);
+    const explicitCounts = {};
+    for (const p of pairs) {
+      const det = detectDeviceTab(p.rowA || p.rowB);
+      if (det) explicitCounts[det] = (explicitCounts[det] || 0) + 1;
+    }
+    const dominantDetected = Object.entries(explicitCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+    const dominantTab = headerDet || dominantDetected || '配件';
+
+    const filtered = pairs.filter(p => {
+      const det = detectDeviceTab(p.rowA || p.rowB);
+      if (det) return det === tabKey;
+      return tabKey === '配件' ? dominantTab === '配件' : dominantTab === tabKey;
+    });
     if (filtered.length) result.push({ header, pairs: filtered });
   }
   return result;
 }
 
 function countTabPairs(tableData, tabKey) {
-  return tableData.reduce((sum, { pairs }) =>
-    sum + pairs.filter(p => rowMatchesTab(p.rowA || p.rowB, tabKey)).length, 0);
+  if (tabKey === 'all') return tableData.reduce((s, { pairs }) => s + pairs.length, 0);
+  return tableData.reduce((sum, { header, pairs }) => {
+    const headerDet = detectDeviceTab(header);
+    const explicitCounts = {};
+    for (const p of pairs) {
+      const det = detectDeviceTab(p.rowA || p.rowB);
+      if (det) explicitCounts[det] = (explicitCounts[det] || 0) + 1;
+    }
+    const dominantDetected = Object.entries(explicitCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+    const dominantTab = headerDet || dominantDetected || '配件';
+    return sum + pairs.filter(p => {
+      const det = detectDeviceTab(p.rowA || p.rowB);
+      if (det) return det === tabKey;
+      return tabKey === '配件' ? dominantTab === '配件' : dominantTab === tabKey;
+    }).length;
+  }, 0);
 }
 
 // ── Column detection from header row ───────────
@@ -247,26 +300,114 @@ function detectColMap(headerRow) {
   (headerRow || []).forEach((cell, i) => {
     const c = String(cell || '').toLowerCase();
     if (/品名|機型|型號|model|product/.test(c)               && map.name < 0)            map.name          = i;
-    if (/容量|儲存|storage|規格/.test(c)                     && map.capacity < 0)        map.capacity      = i;
+    if (/容量|尺寸|大小|儲存|storage|size|規格/.test(c)      && map.capacity < 0)        map.capacity      = i;
     if (/促銷|最終|特惠|final|promo|活動價格|活動最終/.test(c) && map.promoPrice < 0)     map.promoPrice    = i;
     if (/折讓|折扣|discount/.test(c)                         && map.discount < 0)        map.discount      = i;
-    if (/原價|定價|建議售/.test(c)                            && map.originalPrice < 0 && i !== map.promoPrice)  map.originalPrice = i;
+    if (/原價|原始價|定價|建議售/.test(c)                       && map.originalPrice < 0 && i !== map.promoPrice)  map.originalPrice = i;
     if (/活動.*價|會員.*價|售價/.test(c)                      && map.memberPrice < 0 && i !== map.promoPrice && i !== map.originalPrice) map.memberPrice = i;
     if (/贈品|贈送|附贈|加贈|gift|bonus|備品|附件|活動附加/.test(c) && map.gift < 0)            map.gift          = i;
   });
   return map;
 }
 
+// Infer column layout from actual data row when no header is available.
+// Detects the two known column structures used in these PDFs:
+//   8-col: [category/empty, 6-digit-code, 品名, 商品型號, 會員價, 折讓額, 促銷價, 活動?]
+//   6-col: [6-digit-code, 品名, 商品型號, 會員價, 折讓額, 促銷價]
+function inferColMapFromRow(row) {
+  if (!row) return null;
+  const cells = (row || []).map(c => String(c ?? '').trim());
+  const n = cells.length;
+  const base = { name: -1, capacity: -1, originalPrice: -1, memberPrice: -1, discount: -1, promoPrice: -1, gift: -1 };
+  // 8-col: col1 is a 5–6 digit product code, col2 is the 品名
+  if (n >= 7 && /^\d{5,6}$/.test(cells[1])) {
+    return { ...base, name: 2, memberPrice: 4, discount: 5, promoPrice: 6 };
+  }
+  // 6-col: col0 is a 5–6 digit product code, col1 is the 品名
+  if (n >= 5 && n < 7 && /^\d{5,6}$/.test(cells[0])) {
+    return { ...base, name: 1, memberPrice: 3, discount: 4, promoPrice: 5 };
+  }
+  return null;
+}
+
 // ── Product key for name-based row matching ──────
+
+// Strip color/band suffix: "AW SE GPS 40/星光鋁/錶帶-S/M" → "AW SE GPS 40"
+// Rule: strip from the first "/" whose next character is Chinese (color description)
+function stripColorSuffix(name) {
+  const m = name.match(/^(.*?)\/[一-鿿]/);
+  return m ? m[1].trim() : name;
+}
+
+// Fill empty name cells from the previous row (PDF merged-cell propagation)
+// header: optional table header row, used to seed the initial product name
+function fillMergedNames(pairs, colMap, header) {
+  // Infer a stable nameIdx for this table from the first available data row
+  const firstRow = pairs.find(p => p.rowA || p.rowB);
+  const sampleRow = firstRow?.rowA || firstRow?.rowB;
+  const effMap = colMap.name >= 0 ? colMap : (inferColMapFromRow(sampleRow) || colMap);
+  const nameIdx = effMap.name >= 0 ? effMap.name : 0;
+
+  // Seed from header if it looks like a product name (not a column label)
+  const headerCell = header && String((header || [])[nameIdx] ?? '').trim();
+  const isColLabel = headerCell && /品名|機型|型號|容量|尺寸|售價|活動|折讓|促銷|model|product|size|price/i.test(headerCell);
+  const seed = (headerCell && !isColLabel) ? headerCell : '';
+  let lastNameA = seed, lastNameB = seed;
+
+  return pairs.map(p => {
+    let { rowA, rowB } = p;
+    if (rowA) {
+      const ni = colMap.name >= 0 ? nameIdx : ((inferColMapFromRow(rowA) || effMap).name >= 0 ? (inferColMapFromRow(rowA) || effMap).name : nameIdx);
+      const name = String(rowA[ni] ?? '').trim();
+      const isSize = /^\d+\s*(mm|GB|TB)$/i.test(name);
+      if (name && !isSize) lastNameA = name;
+      else if (lastNameA) { rowA = [...rowA]; rowA[ni] = lastNameA; }
+    }
+    if (rowB) {
+      const ni = colMap.name >= 0 ? nameIdx : ((inferColMapFromRow(rowB) || effMap).name >= 0 ? (inferColMapFromRow(rowB) || effMap).name : nameIdx);
+      const name = String(rowB[ni] ?? '').trim();
+      const isSize = /^\d+\s*(mm|GB|TB)$/i.test(name);
+      if (name && !isSize) lastNameB = name;
+      else if (lastNameB) { rowB = [...rowB]; rowB[ni] = lastNameB; }
+    }
+    return { ...p, rowA, rowB };
+  });
+}
+
 function productKey(row, colMap) {
   if (!row) return '';
   const cells = row.map(c => String(c ?? '').trim());
-  const nameIdx = (colMap && colMap.name >= 0) ? colMap.name : 0;
-  const capIdx  = (colMap && colMap.capacity >= 0) ? colMap.capacity : -1;
-  const name = cells[nameIdx] || '';
-  const cap  = (capIdx >= 0 && capIdx !== nameIdx) ? (cells[capIdx] || '') : '';
-  const key  = (cap && cap !== name) ? `${name}__${cap}` : name;
+  // Always prefer row-structure inference so 6-col rows use the right name column
+  const eff = inferColMapFromRow(row) || colMap;
+  const nameIdx = (eff && eff.name >= 0) ? eff.name : 0;
+  const capIdx  = (eff && eff.capacity >= 0) ? eff.capacity : -1;
+  let name = cells[nameIdx] || '';
+
+  // Normalize: strip color/band suffix so all variants of same model share a key
+  name = stripColorSuffix(name);
+
+  let cap = (capIdx >= 0 && capIdx !== nameIdx) ? (cells[capIdx] || '') : '';
+  // Fallback: scan other cells for explicit size patterns (40mm, 128GB, etc.)
+  if (!cap) {
+    for (let i = 0; i < cells.length; i++) {
+      if (i === nameIdx) continue;
+      if (/^\d+\s*(mm|GB|TB)$/i.test(cells[i])) { cap = cells[i]; break; }
+    }
+  }
+  // Size embedded in name itself (e.g. "Apple Watch SE 40mm")
+  if (!cap) {
+    const m = name.match(/\b(\d+\s*(?:mm|GB|TB))\b/i);
+    if (m) cap = m[1];
+  }
+
+  const key = (cap && cap !== name) ? `${name}__${cap}` : name;
   return (!key || /^[\d,]+$/.test(key)) ? '' : key;
+}
+
+
+// Normalize key for loose matching (handle minor formatting differences between docs)
+function normKey(k) {
+  return k.toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
 // Re-match row pairs by product name to fix positional mismatch from difflib
@@ -274,15 +415,16 @@ function rematchPairsByName(pairs, colMap) {
   const aMap = new Map(), bMap = new Map();
   const keyOrder = [], seen = new Set();
 
-  const addKey = k => { if (k && !seen.has(k)) { keyOrder.push(k); seen.add(k); } };
+  const addKey = k => { const nk = normKey(k); if (k && !seen.has(nk)) { keyOrder.push(k); seen.add(nk); } };
 
   for (const p of pairs) {
-    if (p.rowA) { const k = productKey(p.rowA, colMap); addKey(k); if (k) aMap.set(k, p.rowA); }
-    if (p.rowB) { const k = productKey(p.rowB, colMap); addKey(k); if (k) bMap.set(k, p.rowB); }
+    if (p.rowA) { const k = productKey(p.rowA, colMap); addKey(k); if (k && !aMap.has(normKey(k))) aMap.set(normKey(k), p.rowA); }
+    if (p.rowB) { const k = productKey(p.rowB, colMap); addKey(k); if (k && !bMap.has(normKey(k))) bMap.set(normKey(k), p.rowB); }
   }
 
   return keyOrder.map(k => {
-    const rowA = aMap.get(k) ?? null, rowB = bMap.get(k) ?? null;
+    const nk = normKey(k);
+    const rowA = aMap.get(nk) ?? null, rowB = bMap.get(nk) ?? null;
     const status = !rowA ? 'only-b' : !rowB ? 'only-a'
       : JSON.stringify(rowA) === JSON.stringify(rowB) ? 'same' : 'changed';
     return { rowA, rowB, status };
@@ -293,9 +435,11 @@ function rematchPairsByName(pairs, colMap) {
 function parseRowData(row, colMap) {
   if (!row) return null;
   const cells = row.map(c => String(c ?? '').trim());
-  const hasMap = colMap.originalPrice >= 0 || colMap.memberPrice >= 0 || colMap.promoPrice >= 0 || colMap.discount >= 0;
+  // Always prefer row-structure inference so 6-col accessory rows use the right name column
+  const effectiveColMap = inferColMapFromRow(row) || colMap;
+  const useMap = effectiveColMap.originalPrice >= 0 || effectiveColMap.memberPrice >= 0 || effectiveColMap.promoPrice >= 0 || effectiveColMap.discount >= 0;
 
-  if (hasMap) {
+  if (useMap) {
     // Only keep a cell value as a price if it looks like a numeric amount:
     // - No Chinese characters (rejects gift descriptions like "配件金$3,000")
     // - Has 3+ consecutive digits
@@ -313,11 +457,11 @@ function parseRowData(row, colMap) {
     // Gift: use dedicated column if found; otherwise scan remaining cells for gift keywords
     const GIFT_KW = ['保護貼', '保護殼', '配件金', '抵用金', '禮券', '加碼', '折抵', '插頭', '轉接線', '傳輸線', '充電線', '贈品', '附贈', '加贈', '免費', '贈送', '禮'];
     let giftVal = '';
-    if (colMap.gift >= 0) {
-      giftVal = cells[colMap.gift] || '';
+    if (effectiveColMap.gift >= 0) {
+      giftVal = cells[effectiveColMap.gift] || '';
     } else {
       const usedIdx = new Set(
-        [colMap.name, colMap.capacity, colMap.originalPrice, colMap.memberPrice, colMap.discount, colMap.promoPrice]
+        [effectiveColMap.name, effectiveColMap.capacity, effectiveColMap.originalPrice, effectiveColMap.memberPrice, effectiveColMap.discount, effectiveColMap.promoPrice]
           .filter(i => i >= 0)
       );
       cells.forEach((c, i) => {
@@ -327,12 +471,20 @@ function parseRowData(row, colMap) {
     }
 
     return {
-      name:          colMap.name          >= 0 ? (cells[colMap.name]          || '') : (cells[0] || ''),
-      capacity:      colMap.capacity      >= 0 ? (cells[colMap.capacity]      || '') : '',
-      originalPrice: toPrice(colMap.originalPrice >= 0 ? cells[colMap.originalPrice] : ''),
-      memberPrice:   toPrice(colMap.memberPrice   >= 0 ? cells[colMap.memberPrice]   : ''),
-      discount:      colMap.discount      >= 0 ? (cells[colMap.discount]      || '') : '',
-      promoPrice:    toPrice(colMap.promoPrice    >= 0 ? cells[colMap.promoPrice]    : ''),
+      name:          effectiveColMap.name          >= 0 ? (cells[effectiveColMap.name]          || '') : (cells[0] || ''),
+      capacity:      (() => {
+        if (effectiveColMap.capacity >= 0) return cells[effectiveColMap.capacity] || '';
+        // Fallback: scan cells for size pattern
+        for (let i = 0; i < cells.length; i++) {
+          if (i === (effectiveColMap.name >= 0 ? effectiveColMap.name : 0)) continue;
+          if (/^\d+\s*(mm|GB|TB)$/i.test(cells[i])) return cells[i];
+        }
+        return '';
+      })(),
+      originalPrice: toPrice(effectiveColMap.originalPrice >= 0 ? cells[effectiveColMap.originalPrice] : ''),
+      memberPrice:   toPrice(effectiveColMap.memberPrice   >= 0 ? cells[effectiveColMap.memberPrice]   : ''),
+      discount:      effectiveColMap.discount      >= 0 ? (cells[effectiveColMap.discount]      || '') : '',
+      promoPrice:    toPrice(effectiveColMap.promoPrice    >= 0 ? cells[effectiveColMap.promoPrice]    : ''),
       gift:          giftVal,
     };
   }
@@ -343,14 +495,22 @@ function parseRowData(row, colMap) {
   cells.forEach(c => {
     if (!c) return;
     if (/^[-－][\d,]+$/.test(c)) { discounts.push(c); return; }
-    const numVal = parseInt(c.replace(/[^0-9]/g, '') || '0');
-    if (numVal >= 5000) { prices.push({ raw: c, val: numVal }); return; }
+    // Cells with Chinese characters are never prices (avoids "現折1627起 再送市價790保護殼" → 16277090)
+    if (!/[一-鿿]/.test(c)) {
+      const numVal = parseInt(c.replace(/[^0-9]/g, '') || '0');
+      if (numVal >= 5000) { prices.push({ raw: c, val: numVal }); return; }
+    }
     if (GIFT_KWORDS.some(k => c.includes(k))) { giftParts.push(c); return; }
     nameParts.push(c);
   });
   prices.sort((a, b) => b.val - a.val);
+  // Remove outlier prices: product codes like "262292" are >> 10× the actual price
+  if (prices.length >= 2) {
+    const minVal = prices[prices.length - 1].val;
+    while (prices.length >= 2 && prices[0].val > minVal * 10) prices.shift();
+  }
 
-  const capIdx = nameParts.findIndex(c => /\d+\s*[GT]B/i.test(c));
+  const capIdx = nameParts.findIndex(c => /\d+\s*[GT]B/i.test(c) || /^\d+\s*mm$/i.test(c));
   const cap    = capIdx >= 0 ? nameParts.splice(capIdx, 1)[0] : '';
 
   return {
@@ -440,17 +600,38 @@ function renderDeviceTabContent(tabKey, tableData) {
     </div>`;
   }
 
-  const colMap   = detectColMap(tabTables[0]?.header || []);
+  // Use first header that actually has column labels; fall back to any table in full dataset
+  const headerForMap =
+    tabTables.find(t => detectColMap(t.header || []).memberPrice >= 0 || detectColMap(t.header || []).promoPrice >= 0)?.header ||
+    tableData.find(t => detectColMap(t.header || []).memberPrice >= 0 || detectColMap(t.header || []).promoPrice >= 0)?.header ||
+    tabTables[0]?.header || [];
+  const colMap   = detectColMap(headerForMap);
   const tabColor = tab?.color || '#6b7280';
 
-  // Re-match all pairs by product name to fix positional mismatch from difflib
-  const rematched = rematchPairsByName(tabTables.flatMap(t => t.pairs), colMap);
+  // Each table processed separately so its header seeds the product-name propagation
+  const filled    = tabTables.flatMap(t => fillMergedNames(t.pairs, colMap, t.header));
+  const allRematched = rematchPairsByName(filled, colMap);
 
-  // Collect unique model names for dropdown
+  // Remove cross-table pairing artifacts: rows dragged into the wrong tab by positional diff
+  // (e.g. an AirPods rowA paired with a Watch rowB shows up in Watch tab via dominant-tab logic)
+  const rematched = (tabKey === 'all') ? allRematched : allRematched.filter(p => {
+    const detA = detectDeviceTab(p.rowA);
+    const detB = detectDeviceTab(p.rowB);
+    if (tabKey === '配件') {
+      // Accept rows tagged as 配件 or with no keyword match (pure-accessory tables)
+      const okA = detA === '配件' || detA === null;
+      const okB = detB === '配件' || detB === null;
+      return okA && okB;
+    }
+    return detA === tabKey || detB === tabKey;     // named tab: at least one side matches
+  });
+
+  // Collect unique model names for dropdown (skip pure category-header rows, normalize color suffix)
   const models = new Set();
   for (const p of rematched) {
-    const name = getProductName(p.rowA || p.rowB, colMap);
-    if (name) models.add(name);
+    const d = parseRowData(p.rowA || p.rowB, colMap);
+    const hasPrice = d?.originalPrice || d?.memberPrice || d?.promoPrice || d?.discount;
+    if (d?.name && hasPrice) models.add(stripColorSuffix(d.name));
   }
 
   let html = `<div class="tab-content" style="border-color:${tab?.border || '#e5e7eb'}">
@@ -497,10 +678,16 @@ function renderDeviceTabContent(tabKey, tableData) {
 
       const dA = parseRowData(p.rowA, colMap);
       const dB = parseRowData(p.rowB, colMap);
-      const displayName = (dA?.name || dB?.name || '').trim();
-      const displayCap  = (dA?.capacity || dB?.capacity || '').trim();
+      const displayName    = (dA?.name || dB?.name || '').trim();
+      const displayNameKey = stripColorSuffix(displayName);
+      const displayCap     = (dA?.capacity || dB?.capacity || '').trim();
 
-      if (activeModelFilter !== 'all' && displayName !== activeModelFilter) continue;
+      // Skip pure category-header rows (name only, no price data at all)
+      const hasAnyPrice = dA?.originalPrice || dA?.memberPrice || dA?.promoPrice ||
+                          dB?.originalPrice || dB?.memberPrice || dB?.promoPrice;
+      if (!hasAnyPrice && !dA?.discount && !dB?.discount) continue;
+
+      if (activeModelFilter !== 'all' && displayNameKey !== activeModelFilter) continue;
 
       // Recommendation
       let recHtml = '', recCls = '';
@@ -658,28 +845,31 @@ function compareRowPair(dA, dB) {
   const gA = (dA?.gift || '').trim();
   const gB = (dB?.gift || '').trim();
 
-  // Subtract monetary credit (配件金 etc.) from price for effective comparison
   const creditA = extractCreditValue(gA);
   const creditB = extractCreditValue(gB);
-  const effA = pA != null ? pA - creditA : null;
-  const effB = pB != null ? pB - creditB : null;
 
   let reason = '', winner = null;
 
-  if (effA != null && effB != null && effA !== effB) {
-    const diff = `$${Math.abs(effA - effB).toLocaleString()}`;
-    if (effA < effB) {
-      winner = 'A';
-      reason = creditA > 0 ? `A 實質省 ${diff}（含配件金 $${creditA.toLocaleString()}）` : `A 省 ${diff}`;
-    } else {
-      winner = 'B';
-      reason = creditB > 0 ? `B 實質省 ${diff}（含配件金 $${creditB.toLocaleString()}）` : `B 省 ${diff}`;
-    }
+  // Step 1: compare actual prices (no credit subtraction)
+  if (pA != null && pB != null && pA !== pB) {
+    const diff = `$${Math.abs(pA - pB).toLocaleString()}`;
+    if (pA < pB) { winner = 'A'; reason = `A 省 ${diff}`; }
+    else          { winner = 'B'; reason = `B 省 ${diff}`; }
   } else if (pA || pB) {
-    reason = (creditA > 0 || creditB > 0) ? '售價相同（贈品活動）' : '售價相同';
+    reason = '售價相同';
   }
 
-  // Non-monetary gifts (保護貼/保護殼 etc.) as tiebreaker only
+  // Step 2: 配件金 tiebreaker — more credit = better deal
+  if (creditA !== creditB) {
+    const more = creditA > creditB ? 'A' : 'B';
+    const hi   = Math.max(creditA, creditB);
+    const lo   = Math.min(creditA, creditB);
+    reason += (reason ? '，' : '') +
+      `${more} 配件金較多（$${hi.toLocaleString()} > $${lo.toLocaleString()}），較為划算`;
+    if (!winner) winner = more;
+  }
+
+  // Step 3: physical gift tiebreaker (保護貼/保護殼 etc.)
   const physicalA = gA && creditA === 0;
   const physicalB = gB && creditB === 0;
   if (physicalA && !physicalB) { reason += (reason ? '，' : '') + `A 附贈 ${gA}`; if (!winner) winner = 'A'; }
@@ -701,7 +891,7 @@ function generateProductSuggestions(compData) {
 
   for (const { header, pairs } of tableData) {
     const colMap   = detectColMap(header);
-    const rematched = rematchPairsByName(pairs, colMap);
+    const rematched = rematchPairsByName(fillMergedNames(pairs, colMap, header), colMap);
 
     for (const p of rematched) {
       const dA = parseRowData(p.rowA, colMap);
@@ -828,8 +1018,8 @@ function renderHistory() {
         <input type="checkbox" class="hist-cb" ${(isA || isB) ? 'checked' : ''}
                onclick="event.stopPropagation(); toggleHistPick(${r.id})">
         <div class="hist-info">
-          <div class="hist-name">${esc(r.name)}</div>
-          <div class="hist-date">🕐 ${fmtDate(r.upload_time)}</div>
+          <div class="hist-name">${esc(r.name)}${r.tables_count === 0 ? ' <span class="no-data-badge">⚠ 無資料</span>' : ''}</div>
+          <div class="hist-date">🕐 ${fmtDate(r.upload_time)}${r.tables_count > 0 ? ` &nbsp;·&nbsp; ${r.tables_count} 張表格` : ''}</div>
           ${r.notes ? `<div class="hist-note">📌 ${esc(r.notes)}</div>` : ''}
         </div>
         ${isA ? '<span class="sel-badge sel-badge-a">A</span>' : ''}

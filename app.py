@@ -150,16 +150,25 @@ def get_records():
     conn.row_factory = sqlite3.Row
     if search:
         records = conn.execute(
-            'SELECT id, name, filename, upload_time, notes FROM records '
+            'SELECT id, name, filename, upload_time, notes, tables_data FROM records '
             'WHERE name LIKE ? OR notes LIKE ? ORDER BY upload_time DESC',
             (f'%{search}%', f'%{search}%')
         ).fetchall()
     else:
         records = conn.execute(
-            'SELECT id, name, filename, upload_time, notes FROM records ORDER BY upload_time DESC'
+            'SELECT id, name, filename, upload_time, notes, tables_data FROM records ORDER BY upload_time DESC'
         ).fetchall()
     conn.close()
-    return jsonify([dict(r) for r in records])
+    result = []
+    for r in records:
+        d = dict(r)
+        try:
+            d['tables_count'] = len(json.loads(d.pop('tables_data', '[]') or '[]'))
+        except Exception:
+            d['tables_count'] = 0
+            d.pop('tables_data', None)
+        result.append(d)
+    return jsonify(result)
 
 
 @app.route('/api/records/<int:record_id>', methods=['DELETE'])
@@ -206,7 +215,10 @@ def compare():
     text2_lines = r2['text_data'].splitlines()
     text_diff = list(difflib.unified_diff(text1_lines, text2_lines, lineterm='', n=2))
 
-    has_changes = any(t.get('status') != 'equal' for t in table_diff)
+    has_table_changes = any(t.get('status') != 'equal' for t in table_diff)
+    has_text_changes  = any(line.startswith(('+', '-')) and not line.startswith(('+++', '---'))
+                            for line in text_diff)
+    has_changes = has_table_changes or has_text_changes
 
     return jsonify({
         'record1': {'id': r1['id'], 'name': r1['name'], 'upload_time': r1['upload_time']},
@@ -214,6 +226,33 @@ def compare():
         'table_diff': table_diff,
         'text_diff': text_diff,
         'has_changes': has_changes,
+        'debug': {
+            'tables1_count': len(tables1),
+            'tables2_count': len(tables2),
+            'has_table_changes': has_table_changes,
+            'has_text_changes': has_text_changes,
+            'text_diff_lines': len(text_diff),
+        },
+    })
+
+
+@app.route('/api/records/<int:record_id>/debug', methods=['GET'])
+def debug_record(record_id):
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    r = conn.execute('SELECT id, name, tables_data, text_data FROM records WHERE id = ?', (record_id,)).fetchone()
+    conn.close()
+    if not r:
+        return jsonify({'error': '記錄不存在'}), 404
+    tables = json.loads(r['tables_data'])
+    text_preview = r['text_data'][:500] if r['text_data'] else ''
+    table_summary = [{'page': t.get('page'), 'row_count': len(t.get('rows', [])),
+                      'first_row': t.get('rows', [[]])[0]} for t in tables[:5]]
+    return jsonify({
+        'id': r['id'], 'name': r['name'],
+        'tables_count': len(tables),
+        'table_summary': table_summary,
+        'text_preview': text_preview,
     })
 
 
