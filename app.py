@@ -266,6 +266,80 @@ def get_suggestions():
     r2_name     = data.get('record2_name', '文件B')
     has_changes = data.get('has_changes', False)
 
+    # ── Category detection ──────────────────────────────────────────────────
+    ACCESSORY_KW = [
+        'AirPods', 'AirTag', 'Beats', 'MagSafe',
+        '保護殼', '保護貼', '保護膜', '防護邊框',
+        '鍵盤', 'Keyboard', '雙面夾',
+        '卡套', '卡夾', '掛繩', '斜背',
+        '線材', '傳輸線', '充電線', '編織線', '對Lightning', '對USB',
+        'Apple Pencil', '耳機', '音箱', '喇叭',
+    ]
+    CAT_KEYS = [
+        ('iPhone', ['iPhone']),
+        ('iPad',   ['iPad']),
+        ('Mac',    ['Mac', 'MacBook', 'iMac', 'MBA', 'MBP']),
+        ('Watch',  ['Watch', 'Apple Watch']),
+        ('配件',   ACCESSORY_KW),
+    ]
+
+    def detect_cat(row):
+        text = ' '.join(str(c or '') for c in (row or []))
+        for cat, kws in CAT_KEYS:
+            if any(k in text for k in kws):
+                # accessory keywords override device keywords
+                if cat != '配件' and any(k in text for k in ACCESSORY_KW):
+                    return '配件'
+                return cat
+        return '其他'
+
+    # ── Per-category marketing copy ─────────────────────────────────────────
+    CAT_COPY = {
+        'iPhone': {
+            'icon': '📱', 'color': 'blue', 'label': 'iPhone',
+            'cheaper': '換機好時機！{name} 本次活動價 ${new:,}，比上次省 ${save:,}，現在入手最划算！',
+            'new':     '📱 iPhone 新優惠上架：{name}，促銷價 ${price:,}{disc_str}，升級體驗不手軟！',
+            'stable':  '📱 iPhone 系列活動條件維持不變，優惠穩定，可直接向客戶推薦。',
+            'summary': '📱 iPhone 本波活動：{detail}，換機首選，把握機會！',
+        },
+        'iPad': {
+            'icon': '📲', 'color': 'purple', 'label': 'iPad',
+            'cheaper': '學習工作利器降價！{name} 活動價 ${new:,}（省 ${save:,}），搭配 Apple Pencil 更超值！',
+            'new':     '📲 iPad 新品優惠：{name}，促銷價 ${price:,}{disc_str}，學習、工作、創作一台搞定！',
+            'stable':  '📲 iPad 系列活動條件維持不變，生產力工具優惠持續，歡迎推薦。',
+            'summary': '📲 iPad 本波活動：{detail}，生產力再升級！',
+        },
+        'Mac': {
+            'icon': '💻', 'color': 'green', 'label': 'Mac',
+            'cheaper': 'M 系列晶片降價來了！{name} 活動價 ${new:,}（省 ${save:,}），效能強大、工作更有力！',
+            'new':     '💻 Mac 新優惠：{name}，促銷價 ${price:,}{disc_str}，M 晶片強悍效能現在更划算！',
+            'stable':  '💻 Mac 系列活動條件不變，M 系列優惠持續，適合有換機需求的客戶。',
+            'summary': '💻 Mac 本波活動：{detail}，創作工作首選！',
+        },
+        'Watch': {
+            'icon': '⌚', 'color': 'pink', 'label': 'Apple Watch',
+            'cheaper': '健康管理更親民！{name} 活動價 ${new:,}（省 ${save:,}），運動健康一手掌握！',
+            'new':     '⌚ Apple Watch 新優惠：{name}，促銷價 ${price:,}{disc_str}，健康監測、運動追蹤全方位！',
+            'stable':  '⌚ Apple Watch 活動條件不變，健康管理優惠持續，是送禮自用的好選擇。',
+            'summary': '⌚ Apple Watch 本波活動：{detail}，健康生活從手腕開始！',
+        },
+        '配件': {
+            'icon': '🔌', 'color': 'orange', 'label': '配件',
+            'cheaper': '配件降價！{name} 活動價 ${new:,}（省 ${save:,}），搭機購買保護裝置更划算！',
+            'new':     '🔌 配件新優惠：{name}，促銷價 ${price:,}{disc_str}，搭配主機一起買CP值最高！',
+            'stable':  '🔌 配件系列活動條件不變，搭配手機平板一起推薦給客戶。',
+            'summary': '🔌 配件本波活動：{detail}，搭機必買、保護升值！',
+        },
+        '其他': {
+            'icon': '🎁', 'color': 'blue', 'label': '其他',
+            'cheaper': '🔻 {name} 本次促銷價 ${new:,}（較上次省 ${save:,}），現在購買更划算！',
+            'new':     '🆕 本次新增：{name}，促銷價 ${price:,}{disc_str}',
+            'stable':  '活動條件維持不變。',
+            'summary': '本波活動：{detail}',
+        },
+    }
+
+    # ── Helper functions ────────────────────────────────────────────────────
     def row_name(row):
         cells = [str(c).strip() for c in (row or []) if c and str(c).strip()]
         return cells[0] if cells else ''
@@ -288,19 +362,27 @@ def get_suggestions():
         p = extract_prices(row)
         return min(p) if p else None
 
-    # Collect added / removed / changed pairs
-    added, removed, cheaper = [], [], []
+    # ── Collect added / removed / cheaper by category ───────────────────────
+    from collections import defaultdict
+    added_by_cat   = defaultdict(list)
+    removed_by_cat = defaultdict(list)
+    cheaper_by_cat = defaultdict(list)
+
     for t in table_diff:
         for rd in t.get('row_diffs', []):
+            cat = detect_cat(rd['row'])
             if rd['status'] == 'added':
-                added.append(rd['row'])
+                added_by_cat[cat].append(rd['row'])
             elif rd['status'] == 'removed':
-                removed.append(rd['row'])
+                removed_by_cat[cat].append(rd['row'])
         if t.get('status') == 'added':
-            added.extend(t.get('rows', [])[1:])
+            for row in t.get('rows', [])[1:]:
+                added_by_cat[detect_cat(row)].append(row)
         elif t.get('status') == 'removed':
-            removed.extend(t.get('rows', [])[1:])
-        # Detect cheaper rows: match removed→added pairs by index within each table
+            for row in t.get('rows', [])[1:]:
+                removed_by_cat[detect_cat(row)].append(row)
+
+        # Cheaper pairs
         rds = t.get('row_diffs', [])
         i = 0
         while i < len(rds):
@@ -314,69 +396,85 @@ def get_suggestions():
                 for ra, rb in zip(rem_block, add_block):
                     pa, pb = lowest(ra), lowest(rb)
                     if pa and pb and pb < pa:
-                        cheaper.append({'name': row_name(rb) or row_preview(rb),
-                                        'old': pa, 'new': pb, 'save': pa - pb})
+                        cat = detect_cat(rb)
+                        cheaper_by_cat[cat].append({
+                            'name': row_name(rb) or row_preview(rb),
+                            'old': pa, 'new': pb, 'save': pa - pb,
+                        })
             else:
                 i += 1
 
+    # ── Build cards ─────────────────────────────────────────────────────────
     cards = []
+    CAT_ORDER = ['iPhone', 'iPad', 'Mac', 'Watch', '配件', '其他']
 
     if not has_changes:
         cards.append({'tag': '活動維持', 'color': 'blue',
             'text': f'📋 本次《{r2_name}》活動條件與《{r1_name}》完全相同，所有品項優惠不變，可直接沿用上次說明。'})
-        if added:
-            p = extract_prices(added[0])
-            price_str = f'，促銷價 ${min(p):,}' if p else ''
-            cards.append({'tag': '活動亮點', 'color': 'green',
-                'text': f'✅ 活動穩定：{row_preview(added[0])}{price_str}，條件優惠不變，歡迎推薦給客戶。'})
-    else:
-        # 降價品項
-        for c in sorted(cheaper, key=lambda x: -x['save'])[:3]:
-            cards.append({'tag': '降價優惠', 'color': 'green',
-                'text': f'🔻 {c["name"]} 本次促銷價 ${c["new"]:,}（較上次活動降 ${c["save"]:,}），現在購買更划算！'})
-
-        # 新增品項
-        for row in added[:3]:
-            p = extract_prices(row)
-            d = extract_discount(row)
-            name = row_preview(row)
-            if not name:
+        # Show stable card per category that has data
+        all_added = [r for rows in added_by_cat.values() for r in rows]
+        for cat in CAT_ORDER:
+            rows = added_by_cat.get(cat, [])
+            if not rows:
                 continue
-            parts = [f'🆕 本次新增：{name}']
-            if p:
-                parts.append(f'促銷價 ${min(p):,}')
-            if d:
-                parts.append(f'折讓 ${d:,}')
-            cards.append({'tag': 'B 新增品項', 'color': 'purple', 'text':', '.join(parts)})
+            cp = CAT_COPY[cat]
+            cards.append({'tag': f'{cp["label"]} 活動', 'color': cp['color'],
+                'text': cp['stable']})
+    else:
+        for cat in CAT_ORDER:
+            cp = CAT_COPY[cat]
+            cheaper = cheaper_by_cat.get(cat, [])
+            added   = added_by_cat.get(cat, [])
+            removed = removed_by_cat.get(cat, [])
 
-        # 最大折讓品項
-        all_rows_b = added + [rd['row'] for t in table_diff
-                               for rd in t.get('row_diffs', []) if rd['status'] == 'added']
-        best_disc = sorted(all_rows_b, key=extract_discount, reverse=True)[:1]
-        for row in best_disc:
-            d = extract_discount(row)
-            p = extract_prices(row)
-            if d > 0:
-                cards.append({'tag': '最大折讓', 'color': 'pink',
-                    'text': f'💸 本次折讓最高品項：{row_preview(row)}，折讓 ${d:,}' +
-                            (f'，促銷價 ${min(p):,}' if p else '') + '，CP值最高！'})
+            if not cheaper and not added and not removed:
+                continue
 
-        # 移除提醒
-        if removed:
-            names = '、'.join(row_name(r) or row_preview(r) for r in removed[:2] if r)
-            if names:
-                cards.append({'tag': '注意下架', 'color': 'orange',
-                    'text': f'⚠️ 本次活動已移除：{names} 等品項，請勿向客戶推薦已下架優惠。'})
+            # Cheaper cards (top 2 per category)
+            for c in sorted(cheaper, key=lambda x: -x['save'])[:2]:
+                cards.append({'tag': f'{cp["label"]} 降價', 'color': 'green',
+                    'text': '🔻 ' + cp['cheaper'].format(**c)})
 
-        # 整體賣點總結
-        n_add, n_rem, n_chp = len(added), len(removed), len(cheaper)
+            # New items (top 2 per category)
+            shown = 0
+            for row in added:
+                if shown >= 2: break
+                p = extract_prices(row)
+                d = extract_discount(row)
+                name = row_name(row) or row_preview(row)
+                if not name or not p: continue
+                disc_str = f'，折讓 ${d:,}' if d else ''
+                cards.append({'tag': f'{cp["label"]} 新優惠', 'color': cp['color'],
+                    'text': cp['new'].format(name=name, price=min(p), disc_str=disc_str)})
+                shown += 1
+
+            # Removed warning
+            if removed:
+                names = '、'.join(filter(None, (row_name(r) or row_preview(r) for r in removed[:2])))
+                if names:
+                    cards.append({'tag': f'{cp["label"]} 注意', 'color': 'orange',
+                        'text': f'⚠️ {cp["label"]} 本次已移除：{names}，請勿向客戶推薦已下架優惠。'})
+
+            # Per-category summary
+            parts = []
+            if cheaper: parts.append(f'{len(cheaper)} 個降價')
+            if added:   parts.append(f'{len(added)} 個新優惠')
+            if removed: parts.append(f'{len(removed)} 個調整')
+            cards.append({'tag': f'{cp["label"]} 總覽', 'color': cp['color'],
+                'text': cp['summary'].format(detail='、'.join(parts))})
+
+        # Overall summary
+        total_cheaper = sum(len(v) for v in cheaper_by_cat.values())
+        total_added   = sum(len(v) for v in added_by_cat.values())
+        total_removed = sum(len(v) for v in removed_by_cat.values())
         summary_parts = []
-        if n_chp:  summary_parts.append(f'{n_chp} 個品項降價')
-        if n_add:  summary_parts.append(f'{n_add} 個新增優惠')
-        if n_rem:  summary_parts.append(f'{n_rem} 個品項調整')
-        cards.append({'tag': '活動總覽', 'color': 'blue',
-            'text': f'📊 《{r2_name}》活動重點：' + '、'.join(summary_parts) +
-                    f'。相比《{r1_name}》整體優惠更完整，歡迎把握機會！'})
+        if total_cheaper: summary_parts.append(f'{total_cheaper} 個品項降價')
+        if total_added:   summary_parts.append(f'{total_added} 個新增優惠')
+        if total_removed: summary_parts.append(f'{total_removed} 個品項調整')
+        if summary_parts:
+            cards.append({'tag': '活動總覽', 'color': 'blue',
+                'text': f'📊 《{r2_name}》整體活動重點：' + '、'.join(summary_parts) +
+                        f'。相比《{r1_name}》優惠更豐富，歡迎把握機會！'})
 
     return jsonify({'suggestions': cards})
 
