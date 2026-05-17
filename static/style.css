@@ -397,6 +397,14 @@ tr.r-removed .dmarker { color: #f43f5e; }
 .sug-card.c-orange { background: linear-gradient(135deg, #fff7ed, #fff); border-color: rgba(249,115,22,.2); }
 .sug-card.c-purple { background: linear-gradient(135deg, #faf5ff, #fff); border-color: rgba(168,85,247,.2); }
 .sug-card.c-pink   { background: linear-gradient(135deg, #fdf2f8, #fff); border-color: rgba(236,72,153,.2); }
+.sug-card.c-tip    { background: linear-gradient(135deg, #f8fafc, #fff); border-color: rgba(100,116,139,.15); }
+.c-tip .sug-tag    { background: #e2e8f0; color: #475569; }
+
+.sug-section-hd {
+  font-size: 11px; font-weight: 800; color: #6b7280; letter-spacing: .8px;
+  text-transform: uppercase; padding: 6px 2px 2px;
+  border-top: 1.5px dashed #e5e7eb; margin-top: 4px;
+}
 
 .sug-tag {
   display: inline-block;

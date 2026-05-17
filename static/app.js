@@ -951,22 +951,85 @@ function generateProductSuggestions(compData) {
   return cards;
 }
 
+// ── Per-category sales talking points ─────────────────────────────────────
+const SALES_TIPS = {
+  iPhone: [
+    { tag: '📱 iPhone 換機話術', text: '「請問您現在用的是哪款 iPhone？如果超過 3 年了，這次換新機效能和相機都大升級，加上活動折讓，現在換是最划算的時機！」' },
+    { tag: '📱 iPhone 搭售提示', text: '記得搭配保護殼和保護貼一起推薦，新機保護好才不用擔心維修費，這次配件也有活動優惠，一起帶走！' },
+  ],
+  iPad: [
+    { tag: '📲 iPad 情境話術', text: '「您平常需要帶電腦出門嗎？iPad 搭配巧控鍵盤，開會上課超方便，比筆電輕很多，而且這次活動搭配購買還有優惠！」' },
+    { tag: '📲 iPad 搭售提示', text: '有 Apple Pencil 優惠時，強調手寫筆記、簽文件、繪圖的使用情境；學生族群和創作者特別有共鳴，可以主動詢問。' },
+  ],
+  Mac: [
+    { tag: '💻 Mac 效能話術', text: '「您現在用的電腦會不會開程式很慢？M 系列 Mac 效能大幅提升，開多個應用程式也很流暢，電池還可以用一整天，非常適合長時間工作的人！」' },
+    { tag: '💻 Mac 學生方案', text: '可以詢問客戶是否為學生或教師身份，搭配 Apple 教育商店折扣，優惠幅度更大，可以幫客戶試算看看。' },
+  ],
+  Watch: [
+    { tag: '⌚ Watch 健康話術', text: '「您有在注意自己的健康狀況嗎？Apple Watch 可以偵測心率、血氧、睡眠品質，還有跌倒偵測功能，非常適合推薦給家中長輩！」' },
+    { tag: '⌚ Watch 送禮推薦', text: 'Apple Watch 是很受歡迎的生日、節慶禮物首選，可以主動詢問客戶最近是否有送禮需求，並強調健康管理和時尚兼具的特點。' },
+  ],
+  配件: [
+    { tag: '🔌 配件搭售話術', text: '「新機一定要配保護殼和保護貼，這次配件也有活動優惠，一起買最划算！不然摔了或螢幕刮傷，維修費比保護殼貴多了！」' },
+    { tag: '🎧 AirPods 推薦', text: '「您有無線耳機嗎？AirPods 搭配 iPhone 連線超流暢，還有主動降噪功能，這次有活動價，一起帶走是最好的搭配！」' },
+  ],
+};
+
+function detectActiveCats(compData) {
+  const { table_diff } = compData;
+  const found = new Set();
+  const CAT_MAP = [
+    ['iPhone', ['iPhone']],
+    ['iPad',   ['iPad']],
+    ['Mac',    ['Mac', 'MacBook', 'iMac', 'MBA', 'MBP']],
+    ['Watch',  ['Watch', 'Apple Watch']],
+    ['配件',   ['AirPods', 'Beats', 'MagSafe', '保護殼', '保護貼', '鍵盤', 'Keyboard',
+                '線材', '傳輸線', '充電線', 'Apple Pencil', '雙面夾', '卡套', '掛繩', '耳機']],
+  ];
+  for (const t of (table_diff || [])) {
+    const allRows = [
+      ...(t.row_diffs || []).map(rd => rd.row),
+      ...(t.rows || []),
+    ];
+    for (const row of allRows) {
+      const text = (row || []).map(c => c || '').join(' ');
+      for (const [cat, kws] of CAT_MAP) {
+        if (kws.some(k => text.includes(k))) { found.add(cat); break; }
+      }
+    }
+  }
+  return ['iPhone', 'iPad', 'Mac', 'Watch', '配件'].filter(c => found.has(c));
+}
+
 async function fetchSuggestions(compData) {
   try {
-    renderSuggestions(generateProductSuggestions(compData));
+    const activityCards = generateProductSuggestions(compData);
+    const activeCats    = detectActiveCats(compData);
+    const tipCards      = activeCats.flatMap(cat => SALES_TIPS[cat] || [])
+                           .map(t => ({ ...t, color: 'tip' }));
+    renderSuggestions(activityCards, tipCards);
   } catch { showDefaultSuggestions(); }
 }
 
-function renderSuggestions(cards) {
-  sugTexts = cards.map(c => c.text);
+function renderSuggestions(cards, tipCards = []) {
+  sugTexts = [...cards, ...tipCards].map(c => c.text);
+  const copyIdx = (i) => i; // index into sugTexts
+
+  const renderCard = (c, i) => `
+    <div class="sug-card c-${c.color || 'orange'}">
+      <div class="sug-tag">${esc(c.tag)}</div>
+      <div class="sug-text">${esc(c.text)}</div>
+      <button class="sug-copy" onclick="copySug(this,${i})">複製</button>
+    </div>`;
+
+  const tipSection = tipCards.length ? `
+    <div class="sug-section-hd">💬 銷售話術參考</div>
+    ${tipCards.map((c, i) => renderCard(c, cards.length + i)).join('')}` : '';
+
   document.getElementById('suggestBody').innerHTML =
     `<div class="sug-list">` +
-    cards.map((c, i) => `
-      <div class="sug-card c-${c.color || 'orange'}">
-        <div class="sug-tag">${esc(c.tag)}</div>
-        <div class="sug-text">${esc(c.text)}</div>
-        <button class="sug-copy" onclick="copySug(this,${i})">複製</button>
-      </div>`).join('') +
+    cards.map(renderCard).join('') +
+    tipSection +
     `</div>`;
 }
 
