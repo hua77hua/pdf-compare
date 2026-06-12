@@ -1161,10 +1161,22 @@ function toast(msg, type = 'info') {
 document.addEventListener('DOMContentLoaded', () => {
   ['edu', 'sku'].forEach(setupDoc);
   const q = document.getElementById('eduQuery');
-  if (q) q.addEventListener('input', debounce(() => {
-    document.getElementById('eduClear').style.display = q.value ? 'block' : 'none';
-    loadEduProducts(q.value.trim());
-  }, 220));
+  if (q) {
+    q.addEventListener('input', debounce(() => {
+      document.getElementById('eduClear').style.display = q.value ? 'block' : 'none';
+      loadEduProducts(q.value.trim());
+    }, 220));
+    // 點/聚焦搜尋框 → 若上一筆還在，清空回到初始查詢畫面，可立即重新搜尋
+    const resetOnTap = () => {
+      if (q.value) {
+        q.value = '';
+        document.getElementById('eduClear').style.display = 'none';
+        loadEduProducts('');
+      }
+    };
+    q.addEventListener('focus', resetOnTap);
+    q.addEventListener('click', resetOnTap);
+  }
 });
 
 function switchView(view) {
