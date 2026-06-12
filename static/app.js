@@ -1322,11 +1322,33 @@ async function uploadDoc(cat, file) {
 
 // ── 教育價查詢 ──────────────────────────────────
 async function loadEduProducts(q = '') {
-  const box = document.getElementById('eduResults');
+  const box   = document.getElementById('eduResults');
+  const count = document.getElementById('eduCount');
+
+  // 還沒搜尋：只留搜尋框，下面不顯示任何清單
+  if (!q) {
+    try {
+      const rows = await (await fetch(`${API}/edu-products`)).json();
+      if (!rows.length) {
+        count.textContent = '尚無資料';
+        box.innerHTML = `<div class="edu-empty"><div class="edu-empty-ico">📄</div>
+          <div class="edu-empty-title">目前沒有查詢資料</div>
+          <div class="edu-empty-desc">已上傳 PDF 的話，點下方按鈕用它建立查詢清單；<br>或在下方上傳新的教育價 PDF（會自動建立）</div>
+          <button class="doc-drop-btn" onclick="rebuildEdu()">🔄 從目前 PDF 建立清單</button></div>`;
+      } else {
+        count.textContent = '輸入品名或貨號開始查詢';
+        box.innerHTML = '';
+      }
+    } catch {
+      count.textContent = '輸入品名或貨號開始查詢';
+      box.innerHTML = '';
+    }
+    return;
+  }
+
   try {
-    const url = q ? `${API}/edu-products?q=${encodeURIComponent(q)}` : `${API}/edu-products`;
-    const res = await fetch(url);
-    renderEduProducts(await res.json(), q);
+    const rows = await (await fetch(`${API}/edu-products?q=${encodeURIComponent(q)}`)).json();
+    renderEduProducts(rows, q);
   } catch {
     box.innerHTML = `<div class="edu-empty"><div class="edu-empty-ico">⚠️</div>
       <div class="edu-empty-title">載入失敗</div><div class="edu-empty-desc">請重新整理頁面再試</div></div>`;
@@ -1338,31 +1360,21 @@ function renderEduProducts(rows, q) {
   const count = document.getElementById('eduCount');
 
   if (!rows.length) {
-    if (q) {
-      count.textContent = '查無資料';
-      box.innerHTML = `<div class="edu-empty"><div class="edu-empty-ico">🔍</div>
-        <div class="edu-empty-title">查無「${esc(q)}」的資料</div>
-        <div class="edu-empty-desc">換個品名或貨號關鍵字試試</div>
-        <button class="edu-reset-btn" onclick="clearEduQuery()">🔄 重新查詢</button></div>`;
-    } else {
-      count.textContent = '尚無資料';
-      box.innerHTML = `<div class="edu-empty"><div class="edu-empty-ico">📄</div>
-        <div class="edu-empty-title">目前沒有查詢資料</div>
-        <div class="edu-empty-desc">已上傳 PDF 的話，點下方按鈕用它建立查詢清單；<br>或在下方上傳新的教育價 PDF（會自動建立）</div>
-        <button class="doc-drop-btn" onclick="rebuildEdu()">🔄 從目前 PDF 建立清單</button></div>`;
-    }
+    count.textContent = '查無資料';
+    box.innerHTML = `<div class="edu-empty"><div class="edu-empty-ico">🔍</div>
+      <div class="edu-empty-title">查無「${esc(q)}」的資料</div>
+      <div class="edu-empty-desc">換個品名或貨號關鍵字試試</div>
+      <button class="edu-reset-btn" onclick="clearEduQuery()">🔄 重新查詢</button></div>`;
     return;
   }
 
-  const LIMIT = 60;
-  const shown = q ? rows : rows.slice(0, LIMIT);
-  count.textContent = q
-    ? `找到 ${rows.length} 筆`
-    : `共 ${rows.length} 筆，可輸入品名或貨號查詢`;
+  const CAP   = 300;
+  const shown = rows.slice(0, CAP);
+  count.textContent = `找到 ${rows.length} 筆`;
 
   const amt = v => { v = String(v || '').trim(); return v ? '$' + v : '—'; };
   const hl  = v => esc(String(v || '')).replace(
-    q ? new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi') : /(?!)/,
+    new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'),
     '<mark class="edu-hit">$1</mark>');
 
   box.innerHTML = `
@@ -1381,9 +1393,8 @@ function renderEduProducts(rows, q) {
         </tbody>
       </table>
     </div>
-    ${(!q && rows.length > LIMIT)
-      ? `<div class="edu-note">顯示前 ${LIMIT} 筆，請輸入關鍵字縮小範圍</div>` : ''}
-    ${q ? `<div class="edu-reset-row"><button class="edu-reset-btn" onclick="clearEduQuery()">🔄 重新查詢</button></div>` : ''}`;
+    ${rows.length > CAP ? `<div class="edu-note">符合 ${rows.length} 筆，顯示前 ${CAP} 筆，請縮小關鍵字</div>` : ''}
+    <div class="edu-reset-row"><button class="edu-reset-btn" onclick="clearEduQuery()">🔄 重新查詢</button></div>`;
 }
 
 function clearEduQuery() {
