@@ -1154,3 +1154,86 @@ function toast(msg, type = 'info') {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
 }
+
+// ═══════════════════════════════════════════════
+//  MAIN TABS + PDF BOARDS  (教育價活動 / 貨號表)
+// ═══════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  ['edu', 'sku'].forEach(setupDoc);
+});
+
+function switchView(view) {
+  document.querySelectorAll('.mtab')
+    .forEach(b => b.classList.toggle('active', b.dataset.view === view));
+  document.querySelectorAll('.view')
+    .forEach(s => s.classList.toggle('active', s.id === 'view-' + view));
+  if (view === 'edu' || view === 'sku') loadDoc(view);
+}
+
+function setupDoc(cat) {
+  const input = document.getElementById(cat + 'File');
+  input.addEventListener('change', () => {
+    if (input.files[0]) uploadDoc(cat, input.files[0]);
+    input.value = '';
+  });
+}
+
+async function loadDoc(cat) {
+  const body = document.getElementById(cat + 'Body');
+  try {
+    const res  = await fetch(`${API}/docs/${cat}`);
+    const meta = await res.json();
+    renderDoc(cat, meta);
+  } catch {
+    body.innerHTML = `<div class="placeholder"><div class="ph-ico">⚠️</div>
+      <div class="ph-title">載入失敗</div><div class="ph-desc">請重新整理頁面再試</div></div>`;
+  }
+}
+
+function renderDoc(cat, meta) {
+  const sub  = document.getElementById(cat + 'Sub');
+  const body = document.getElementById(cat + 'Body');
+  if (meta && meta.exists) {
+    sub.textContent = `目前檔案：${meta.name} · ${fmtDate(meta.upload_time)}`;
+    const src = `${API}/docs/${cat}/file?t=${encodeURIComponent(meta.upload_time)}`;
+    body.innerHTML =
+      `<iframe class="doc-frame" src="${src}" title="${esc(meta.name)}"></iframe>`;
+  } else {
+    sub.textContent = '尚未上傳檔案';
+    body.innerHTML = `
+      <div class="doc-drop" id="${cat}Drop">
+        <div class="doc-drop-ico">📄</div>
+        <div class="doc-drop-title">尚未上傳 PDF</div>
+        <div class="doc-drop-desc">點擊下方按鈕，或將 PDF 拖曳到這裡<br>上傳後銷售人員即可直接瀏覽，舊檔會自動被取代</div>
+        <button class="doc-drop-btn" onclick="document.getElementById('${cat}File').click()">⬆ 上傳 PDF</button>
+      </div>`;
+    wireDrop(cat);
+  }
+}
+
+function wireDrop(cat) {
+  const zone = document.getElementById(cat + 'Drop');
+  if (!zone) return;
+  zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', e => { if (!zone.contains(e.relatedTarget)) zone.classList.remove('drag-over'); });
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) uploadDoc(cat, e.dataTransfer.files[0]);
+  });
+}
+
+async function uploadDoc(cat, file) {
+  if (!file.name.toLowerCase().endsWith('.pdf')) { toast('請選擇 PDF 格式的文件', 'error'); return; }
+  const body = document.getElementById(cat + 'Body');
+  body.innerHTML = `<div class="doc-uploading"><div class="spin"></div><div>上傳中，請稍候…</div></div>`;
+  try {
+    const fd = new FormData(); fd.append('file', file);
+    const res  = await fetch(`${API}/docs/${cat}`, { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || '上傳失敗');
+    toast('上傳成功！已更新為最新檔案', 'success');
+  } catch (e) {
+    toast('上傳失敗：' + e.message, 'error');
+  }
+  loadDoc(cat);
+}

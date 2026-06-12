@@ -26,6 +26,21 @@
     </div>
   </header>
 
+  <!-- ══ Main Tabs ══ -->
+  <nav class="main-tabs">
+    <button class="mtab active" data-view="compare" onclick="switchView('compare')">
+      <span class="mtab-ico">🔍</span><span class="mtab-label">PDF 比較</span>
+    </button>
+    <button class="mtab" data-view="edu" onclick="switchView('edu')">
+      <span class="mtab-ico">🎓</span><span class="mtab-label">教育價活動</span>
+    </button>
+    <button class="mtab" data-view="sku" onclick="switchView('sku')">
+      <span class="mtab-ico">🏷️</span><span class="mtab-label">貨號表</span>
+    </button>
+  </nav>
+
+  <!-- ══ View: PDF 比較 ══ -->
+  <section id="view-compare" class="view active">
   <!-- ══ 4 Blocks Grid ══ -->
   <div class="grid">
 
@@ -156,6 +171,39 @@
     </div>
 
   </div><!-- /grid -->
+  </section><!-- /view-compare -->
+
+  <!-- ══ View: 教育價活動 ══ -->
+  <section id="view-edu" class="view">
+    <div class="block doc-block doc-edu">
+      <div class="blk-hd">
+        <span class="blk-ico">🎓</span>
+        <div class="blk-hd-text">
+          <div class="blk-title">教育價活動</div>
+          <div class="blk-sub" id="eduSub">載入中…</div>
+        </div>
+        <input type="file" id="eduFile" accept=".pdf" style="display:none">
+        <button class="doc-up-btn" onclick="document.getElementById('eduFile').click()">⬆ 上傳新檔</button>
+      </div>
+      <div class="blk-bd doc-bd" id="eduBody"></div>
+    </div>
+  </section>
+
+  <!-- ══ View: 貨號表 ══ -->
+  <section id="view-sku" class="view">
+    <div class="block doc-block doc-sku">
+      <div class="blk-hd">
+        <span class="blk-ico">🏷️</span>
+        <div class="blk-hd-text">
+          <div class="blk-title">貨號表</div>
+          <div class="blk-sub" id="skuSub">載入中…</div>
+        </div>
+        <input type="file" id="skuFile" accept=".pdf" style="display:none">
+        <button class="doc-up-btn" onclick="document.getElementById('skuFile').click()">⬆ 上傳新檔</button>
+      </div>
+      <div class="blk-bd doc-bd" id="skuBody"></div>
+    </div>
+  </section>
 </div><!-- /app -->
 
 <div id="toast" class="toast"></div>

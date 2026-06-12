@@ -35,8 +35,22 @@ def init_db():
             notes TEXT DEFAULT ''
         )
     ''')
+    # Single-latest-PDF boards (教育價活動 / 貨號表). Only one file per category;
+    # uploading a new file overwrites the old one.
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS single_docs (
+            category    TEXT PRIMARY KEY,
+            orig_name   TEXT NOT NULL,
+            stored_name TEXT NOT NULL,
+            upload_time TEXT NOT NULL
+        )
+    ''')
     conn.commit()
     conn.close()
+
+
+# Categories that each keep a single most-recent PDF
+DOC_CATEGORIES = {'edu', 'sku'}
 
 
 def extract_pdf_data(filepath):
@@ -477,6 +491,69 @@ def get_suggestions():
                         f'。相比《{r1_name}》優惠更豐富，歡迎把握機會！'})
 
     return jsonify({'suggestions': cards})
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  SINGLE-LATEST-PDF BOARDS  (教育價活動 / 貨號表)
+#  Each category keeps exactly one PDF; a new upload replaces the old one.
+# ═══════════════════════════════════════════════════════════════════════════
+@app.route('/api/docs/<category>', methods=['GET'])
+def get_doc(category):
+    if category not in DOC_CATEGORIES:
+        return jsonify({'error': '類別不存在'}), 404
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    row = conn.execute('SELECT orig_name, upload_time FROM single_docs WHERE category = ?',
+                       (category,)).fetchone()
+    conn.close()
+    if not row:
+        return jsonify({'exists': False})
+    return jsonify({'exists': True, 'name': row['orig_name'], 'upload_time': row['upload_time']})
+
+
+@app.route('/api/docs/<category>', methods=['POST'])
+def upload_doc(category):
+    if category not in DOC_CATEGORIES:
+        return jsonify({'error': '類別不存在'}), 404
+    if 'file' not in request.files:
+        return jsonify({'error': '未選擇文件'}), 400
+
+    file = request.files['file']
+    if not file.filename.lower().endswith('.pdf'):
+        return jsonify({'error': '只支援 PDF 文件'}), 400
+
+    # Fixed stored name per category → new upload always overwrites the old file
+    stored_name = f'single_{category}.pdf'
+    filepath = os.path.join(UPLOAD_FOLDER, stored_name)
+    file.save(filepath)
+
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute(
+        'INSERT INTO single_docs (category, orig_name, stored_name, upload_time) '
+        'VALUES (?, ?, ?, ?) '
+        'ON CONFLICT(category) DO UPDATE SET '
+        'orig_name = excluded.orig_name, stored_name = excluded.stored_name, '
+        'upload_time = excluded.upload_time',
+        (category, file.filename, stored_name, datetime.now().isoformat())
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'message': '上傳成功', 'name': file.filename})
+
+
+@app.route('/api/docs/<category>/file', methods=['GET'])
+def get_doc_file(category):
+    if category not in DOC_CATEGORIES:
+        return jsonify({'error': '類別不存在'}), 404
+    conn = sqlite3.connect(DB_PATH)
+    row = conn.execute('SELECT stored_name FROM single_docs WHERE category = ?',
+                       (category,)).fetchone()
+    conn.close()
+    if not row or not os.path.exists(os.path.join(UPLOAD_FOLDER, row[0])):
+        return jsonify({'error': '檔案不存在'}), 404
+    resp = send_from_directory(UPLOAD_FOLDER, row[0], mimetype='application/pdf')
+    resp.headers['Cache-Control'] = 'no-store'
+    return resp
 
 
 init_db()

@@ -701,3 +701,104 @@ tr.row-chg td.sc-b-cell { background: rgba(219,39,119,.05); }
 .toast.success { background: linear-gradient(135deg, #059669, #10b981); }
 .toast.error   { background: linear-gradient(135deg, #dc2626, #ef4444); }
 .toast.info    { background: linear-gradient(135deg, #7c3aed, #a855f7); }
+
+/* ═══════════════════════════════════════════════
+   MAIN TABS  (PDF 比較 / 教育價活動 / 貨號表)
+═══════════════════════════════════════════════ */
+.main-tabs {
+  flex-shrink: 0; z-index: 15;
+  display: flex; gap: 8px;
+  padding: 10px 16px 0;
+}
+.mtab {
+  display: flex; align-items: center; gap: 7px;
+  padding: 9px 18px;
+  border: 1px solid rgba(124,58,237,.15);
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
+  background: rgba(255,255,255,.55);
+  font-size: 13px; font-weight: 700; color: #6b7280;
+  cursor: pointer; font-family: inherit; white-space: nowrap;
+  transition: all .18s;
+}
+.mtab:hover { background: rgba(255,255,255,.8); color: #374151; }
+.mtab.active {
+  background: rgba(255,255,255,.92);
+  color: #7c3aed;
+  box-shadow: 0 -3px 12px rgba(124,58,237,.12);
+}
+.mtab-ico { font-size: 15px; }
+
+/* View containers: only the active one is shown */
+.view { display: none; }
+.view.active {
+  display: flex; flex-direction: column;
+  flex: 1; min-height: 0;
+}
+/* Keep the compare grid filling its view */
+#view-compare.active .grid { flex: 1; }
+
+/* ═══════════════════════════════════════════════
+   PDF BOARD VIEWS  (single latest PDF)
+═══════════════════════════════════════════════ */
+.doc-block {
+  flex: 1; min-height: 0;
+  margin: 12px;
+}
+.doc-edu { border-top: 3px solid #2563eb; }
+.doc-sku { border-top: 3px solid #0891b2; }
+.doc-edu .blk-hd { background: linear-gradient(135deg, #2563eb 0%, #60a5fa 100%); }
+.doc-sku .blk-hd { background: linear-gradient(135deg, #0891b2 0%, #22d3ee 100%); }
+
+.doc-up-btn {
+  background: white; border: none; border-radius: 10px;
+  padding: 7px 15px; font-size: 13px; font-weight: 700;
+  cursor: pointer; font-family: inherit; white-space: nowrap; flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,.12); transition: all .18s;
+}
+.doc-edu .doc-up-btn { color: #2563eb; }
+.doc-sku .doc-up-btn { color: #0891b2; }
+.doc-up-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,.18); }
+
+/* Body holds either the PDF viewer or a placeholder */
+.doc-bd { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+.doc-frame { flex: 1; width: 100%; border: 0; min-height: 0; }
+
+.doc-drop {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 14px; padding: 32px; text-align: center;
+  margin: 16px; border: 2px dashed #d1d5db; border-radius: 18px;
+  cursor: pointer; transition: all .2s;
+}
+.doc-drop:hover { border-color: #93c5fd; background: rgba(37,99,235,.03); }
+.doc-drop.drag-over { border-color: #2563eb; background: rgba(37,99,235,.07); transform: scale(1.01); }
+.doc-drop-ico   { font-size: 48px; opacity: .55; }
+.doc-drop-title { font-size: 15px; font-weight: 700; color: #374151; }
+.doc-drop-desc  { font-size: 12px; color: #9ca3af; line-height: 1.6; }
+.doc-drop-btn {
+  margin-top: 4px;
+  background: linear-gradient(135deg, #2563eb, #60a5fa);
+  color: white; border: none; border-radius: 12px;
+  padding: 11px 24px; font-size: 14px; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+  box-shadow: 0 6px 18px rgba(37,99,235,.3);
+}
+
+.doc-uploading {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 12px;
+  color: #6b7280; font-size: 13px;
+}
+
+/* ── Responsive: PDF boards on tablet/phone ── */
+@media (max-width: 1099px) {
+  .view.active { flex: none; }
+  .doc-block { min-height: 78vh; }
+}
+@media (max-width: 640px) {
+  .main-tabs { padding: 8px 10px 0; gap: 5px; overflow-x: auto; }
+  .mtab { padding: 8px 13px; font-size: 12px; }
+  .doc-block { margin: 10px; min-height: 72vh; }
+  .doc-up-btn { padding: 6px 11px; font-size: 12px; }
+}
