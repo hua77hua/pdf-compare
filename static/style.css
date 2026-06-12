@@ -484,13 +484,22 @@ tr.r-removed .dmarker { color: #f43f5e; }
   .blk-suggest { grid-column: 1; grid-row: 3; }
   .blk-history { grid-column: 1; grid-row: 4; }
 
-  /* Slots: stack vertically */
-  .slots-row { flex-direction: column; align-items: stretch; gap: 8px; }
-  .slot      { min-height: 86px; }
-  .vs-ring   { align-self: center; transform: rotate(90deg); }
+  /* Slots: stack vertically, compact on phones */
+  .blk-upload .blk-bd { padding: 12px; }
+  .slots-row { flex-direction: column; align-items: stretch; gap: 6px; margin-bottom: 10px; }
+  .slot      { min-height: 58px; }
+  .slot-idle { flex-direction: row; gap: 8px; padding: 8px 12px; }
+  .slot-big-ico { font-size: 20px; }
+  .slot-label   { font-size: 12px; }
+  .slot-hint    { font-size: 10px; }
+  .slot-filled  { flex-direction: row; gap: 8px; padding: 8px 12px; }
+  .slot-pdf-badge { width: 30px; height: 30px; }
+  .vs-ring   { align-self: center; transform: rotate(90deg); width: 26px; height: 26px; font-size: 9px; }
 
-  /* Name fields: full width */
-  .name-row  { grid-template-columns: 1fr; }
+  /* Name fields: full width, tighter */
+  .name-row  { grid-template-columns: 1fr; gap: 8px; margin-bottom: 10px; }
+  .name-inp  { padding: 7px 10px; }
+  .go-btn    { padding: 11px; font-size: 13px; }
 
   /* Device tabs: wrap, compact */
   .dev-tab-btn { padding: 6px 9px; }
