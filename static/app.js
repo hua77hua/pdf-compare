@@ -1330,7 +1330,8 @@ function renderEduProducts(rows, q) {
       count.textContent = '查無資料';
       box.innerHTML = `<div class="edu-empty"><div class="edu-empty-ico">🔍</div>
         <div class="edu-empty-title">查無「${esc(q)}」的資料</div>
-        <div class="edu-empty-desc">換個品名或貨號關鍵字試試</div></div>`;
+        <div class="edu-empty-desc">換個品名或貨號關鍵字試試</div>
+        <button class="edu-reset-btn" onclick="clearEduQuery()">🔄 重新查詢</button></div>`;
     } else {
       count.textContent = '尚無資料';
       box.innerHTML = `<div class="edu-empty"><div class="edu-empty-ico">📄</div>
@@ -1369,7 +1370,8 @@ function renderEduProducts(rows, q) {
       </table>
     </div>
     ${(!q && rows.length > LIMIT)
-      ? `<div class="edu-note">顯示前 ${LIMIT} 筆，請輸入關鍵字縮小範圍</div>` : ''}`;
+      ? `<div class="edu-note">顯示前 ${LIMIT} 筆，請輸入關鍵字縮小範圍</div>` : ''}
+    ${q ? `<div class="edu-reset-row"><button class="edu-reset-btn" onclick="clearEduQuery()">🔄 重新查詢</button></div>` : ''}`;
 }
 
 function clearEduQuery() {

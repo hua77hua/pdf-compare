@@ -847,6 +847,29 @@ tr.row-chg td.sc-b-cell { background: rgba(219,39,119,.05); }
 .edu-block { border-top: 3px solid #2563eb; }
 .edu-search-bd { display: flex; flex-direction: column; gap: 12px; }
 
+/* 促銷併行（對應專用）提示列 */
+.edu-note-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
+  background: linear-gradient(135deg, #fffbeb, #fff);
+  border: 1.5px solid #fde68a; border-radius: 12px;
+  padding: 10px 14px;
+}
+.edu-note-tag {
+  font-size: 11px; font-weight: 800; color: #b45309;
+  background: #fef3c7; border-radius: 7px; padding: 3px 9px;
+}
+.edu-note-item { font-size: 12px; color: #6b7280; white-space: nowrap; }
+.edu-note-item b { color: #db2777; font-family: 'SF Mono', ui-monospace, monospace; }
+
+/* 重新查詢按鈕 */
+.edu-reset-row { text-align: center; padding-top: 12px; }
+.edu-reset-btn {
+  background: #fff; border: 1.5px solid #e5e7eb; border-radius: 10px;
+  padding: 8px 18px; font-size: 13px; font-weight: 700; color: #2563eb;
+  cursor: pointer; font-family: inherit; transition: all .15s;
+}
+.edu-reset-btn:hover { border-color: #2563eb; background: #eff6ff; }
+
 .edu-searchbar {
   display: flex; align-items: center; gap: 10px;
   background: #f9fafb; border: 1.5px solid #e5e7eb; border-radius: 14px;
