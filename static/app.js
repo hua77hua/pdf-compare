@@ -1202,8 +1202,23 @@ function renderDoc(cat, meta) {
   if (meta && meta.exists) {
     sub.textContent = `目前檔案：${meta.name} · ${fmtDate(meta.upload_time)}`;
     const src = `${API}/docs/${cat}/file?t=${encodeURIComponent(meta.upload_time)}`;
-    body.innerHTML =
-      `<iframe class="doc-frame" src="${src}" title="${esc(meta.name)}"></iframe>`;
+    body.innerHTML = `
+      <div class="pdf-toolbar">
+        <span class="pdf-fname">${esc(meta.name)}</span>
+        <div class="pdf-actions">
+          <a class="pdf-btn" href="${src}" target="_blank" rel="noopener">🔍 全螢幕開啟</a>
+          <a class="pdf-btn" href="${src}" download="${esc(meta.name)}">⬇ 下載</a>
+        </div>
+      </div>
+      <div class="pdf-scroll" id="${cat}Scroll">
+        <div class="doc-uploading"><div class="spin"></div><div>載入 PDF 中…</div></div>
+      </div>`;
+    renderPdf(cat, src).catch(() => {
+      // Fallback if PDF.js unavailable: native iframe (best-effort) + clear hint
+      const sc = document.getElementById(cat + 'Scroll');
+      if (sc) sc.innerHTML =
+        `<iframe class="doc-frame" src="${src}" title="${esc(meta.name)}"></iframe>`;
+    });
   } else {
     sub.textContent = '尚未上傳檔案';
     body.innerHTML = `
@@ -1215,6 +1230,50 @@ function renderDoc(cat, meta) {
       </div>`;
     wireDrop(cat);
   }
+}
+
+// PDF.js scrollable, lazy-rendered viewer — works on phones, tablets and desktop
+async function renderPdf(cat, url) {
+  const scroll = document.getElementById(cat + 'Scroll');
+  if (!scroll || !window.pdfjsLib) throw new Error('pdfjs unavailable');
+
+  const pdf = await pdfjsLib.getDocument({ url }).promise;
+  scroll.innerHTML = '';
+
+  const dpr     = Math.min(window.devicePixelRatio || 1, 2);
+  const pad     = 24;
+  const renderW = Math.min((scroll.clientWidth || 360) - pad, 900);
+
+  const io = new IntersectionObserver((entries, obs) => {
+    for (const e of entries) {
+      if (e.isIntersecting) { obs.unobserve(e.target); drawPdfPage(e.target); }
+    }
+  }, { root: scroll, rootMargin: '400px 0px' });
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const vp1  = page.getViewport({ scale: 1 });
+    const scale = renderW / vp1.width;
+    const vp   = page.getViewport({ scale });
+    const holder = document.createElement('div');
+    holder.className = 'pdf-page';
+    holder.style.width  = renderW + 'px';
+    holder.style.height = vp.height + 'px';
+    holder._page = page; holder._scale = scale; holder._dpr = dpr;
+    scroll.appendChild(holder);
+    io.observe(holder);
+  }
+}
+
+async function drawPdfPage(holder) {
+  const { _page: page, _scale: scale, _dpr: dpr } = holder;
+  const vp = page.getViewport({ scale: scale * dpr });
+  const canvas = document.createElement('canvas');
+  canvas.width = vp.width; canvas.height = vp.height;
+  holder.appendChild(canvas);
+  try {
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+  } catch { /* page render failure shouldn't break the rest */ }
 }
 
 function wireDrop(cat) {
