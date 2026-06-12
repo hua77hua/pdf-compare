@@ -175,17 +175,42 @@
 
   <!-- ══ View: 教育價活動 ══ -->
   <section id="view-edu" class="view">
-    <div class="block doc-block doc-edu">
-      <div class="blk-hd">
-        <span class="blk-ico">🎓</span>
-        <div class="blk-hd-text">
-          <div class="blk-title">教育價活動</div>
-          <div class="blk-sub" id="eduSub">載入中…</div>
+    <div class="edu-wrap">
+
+      <!-- 教育價查詢 -->
+      <div class="block edu-block">
+        <div class="blk-hd">
+          <span class="blk-ico">🎓</span>
+          <div class="blk-hd-text">
+            <div class="blk-title">教育價查詢</div>
+            <div class="blk-sub" id="eduCount">輸入品名或貨號即可查詢</div>
+          </div>
         </div>
-        <input type="file" id="eduFile" accept=".pdf" style="display:none">
-        <button class="doc-up-btn" onclick="document.getElementById('eduFile').click()">⬆ 上傳新檔</button>
+        <div class="blk-bd edu-search-bd">
+          <div class="edu-searchbar">
+            <span class="edu-search-ico">🔍</span>
+            <input type="text" id="eduQuery" class="edu-search-inp"
+                   placeholder="搜尋品名或貨號…（例：iPad Air、234833）">
+            <button class="edu-clear" id="eduClear" onclick="clearEduQuery()" style="display:none">✕</button>
+          </div>
+          <div id="eduResults" class="edu-results"></div>
+        </div>
       </div>
-      <div class="blk-bd doc-bd" id="eduBody"></div>
+
+      <!-- 教育價活動手冊（PDF） -->
+      <div class="block doc-block doc-edu">
+        <div class="blk-hd">
+          <span class="blk-ico">📄</span>
+          <div class="blk-hd-text">
+            <div class="blk-title">教育價活動手冊（PDF）</div>
+            <div class="blk-sub" id="eduSub">載入中…</div>
+          </div>
+          <input type="file" id="eduFile" accept=".pdf" style="display:none">
+          <button class="doc-up-btn" onclick="document.getElementById('eduFile').click()">⬆ 上傳新檔</button>
+        </div>
+        <div class="blk-bd doc-bd" id="eduBody"></div>
+      </div>
+
     </div>
   </section>
 

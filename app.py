@@ -1,5 +1,6 @@
 import os
 import json
+import re
 import sqlite3
 import difflib
 from datetime import datetime
@@ -45,6 +46,16 @@ def init_db():
             upload_time TEXT NOT NULL
         )
     ''')
+    # 教育價查詢清單：品名 / 貨號 / 折抵金額 / 全額貨號
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS edu_products (
+            id        INTEGER PRIMARY KEY AUTOINCREMENT,
+            name      TEXT DEFAULT '',
+            code      TEXT DEFAULT '',
+            discount  TEXT DEFAULT '',
+            full_code TEXT DEFAULT ''
+        )
+    ''')
     conn.commit()
     conn.close()
 
@@ -69,6 +80,64 @@ def extract_pdf_data(filepath):
             if text:
                 full_text.append(text)
     return tables, '\n'.join(full_text)
+
+
+def _clean_cell(s):
+    return re.sub(r'\s+', ' ', str(s or '')).strip()
+
+
+def extract_edu_products(filepath):
+    """Parse the education-pricing PDF into rows of
+    (品名, 貨號, 折抵金額, 全額貨號) by reading the labelled tables
+    (header row contains 貨號 / 品名 / 折抵金額 / 全額...)."""
+    out = []
+    with pdfplumber.open(filepath) as pdf:
+        for pg in pdf.pages:
+            for t in (pg.extract_tables() or []):
+                hdr_i = None
+                for i, r in enumerate(t[:4]):
+                    cells = [_clean_cell(c) for c in r]
+                    if '貨號' in cells and '品名' in cells:
+                        hdr_i = i
+                        break
+                if hdr_i is None:
+                    continue
+                hdr = [_clean_cell(c) for c in t[hdr_i]]
+
+                def find(pred):
+                    for i, c in enumerate(hdr):
+                        if pred(c):
+                            return i
+                    return -1
+
+                code_i = find(lambda c: c == '貨號')
+                name_i = find(lambda c: c == '品名')
+                disc_i = find(lambda c: '折抵金額' in c)
+                full_i = find(lambda c: '全額' in c)
+                if disc_i < 0 or full_i < 0 or code_i < 0 or name_i < 0:
+                    continue  # only device tables carrying discount + full code
+
+                boundary = {code_i, disc_i, full_i,
+                            find(lambda c: '型號' in c),
+                            find(lambda c: '會員價' in c),
+                            find(lambda c: '教育價' in c)}
+                boundary.discard(-1)
+                name_end = min([i for i in boundary if i > name_i], default=name_i + 1)
+
+                for r in t[hdr_i + 1:]:
+                    cells = [_clean_cell(c) for c in r] + [''] * len(hdr)
+                    code = cells[code_i]
+                    name = ' '.join(x for x in cells[name_i:name_end] if x)
+                    disc = cells[disc_i]
+                    full = cells[full_i]
+                    if not name or not code:
+                        continue
+                    if code == '貨號' or name == '品名':
+                        continue
+                    if '教育價' in code or '折抵' in code or not re.search(r'\d', code):
+                        continue
+                    out.append((name, code, disc, full))
+    return out
 
 
 def compare_tables(tables1, tables2):
@@ -538,7 +607,29 @@ def upload_doc(category):
     )
     conn.commit()
     conn.close()
-    return jsonify({'message': '上傳成功', 'name': file.filename})
+
+    # 教育價 PDF：自動解析表格，更新可搜尋清單（換新檔即覆蓋舊資料）
+    parsed = None
+    if category == 'edu':
+        try:
+            rows = extract_edu_products(filepath)
+        except Exception:
+            rows = []
+        if rows:
+            conn = sqlite3.connect(DB_PATH)
+            conn.execute('DELETE FROM edu_products')
+            conn.executemany(
+                'INSERT INTO edu_products (name, code, discount, full_code) VALUES (?, ?, ?, ?)',
+                rows
+            )
+            conn.commit()
+            conn.close()
+        parsed = len(rows)
+
+    resp = {'message': '上傳成功', 'name': file.filename}
+    if parsed is not None:
+        resp['parsed'] = parsed
+    return jsonify(resp)
 
 
 @app.route('/api/docs/<category>/file', methods=['GET'])
@@ -554,6 +645,74 @@ def get_doc_file(category):
     resp = send_from_directory(UPLOAD_FOLDER, row[0], mimetype='application/pdf')
     resp.headers['Cache-Control'] = 'no-store'
     return resp
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  教育價查詢清單  (品名 / 貨號 / 折抵金額 / 全額貨號)
+# ═══════════════════════════════════════════════════════════════════════════
+@app.route('/api/edu-products', methods=['GET'])
+def edu_products():
+    q = request.args.get('q', '').strip()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    if q:
+        like = f'%{q}%'
+        rows = conn.execute(
+            'SELECT id, name, code, discount, full_code FROM edu_products '
+            'WHERE name LIKE ? OR code LIKE ? OR full_code LIKE ? ORDER BY name',
+            (like, like, like)
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            'SELECT id, name, code, discount, full_code FROM edu_products ORDER BY name'
+        ).fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.route('/api/edu-products/import', methods=['POST'])
+def edu_products_import():
+    data = request.get_json() or {}
+    rows = data.get('rows', [])
+    cleaned = []
+    for r in rows:
+        r = list(r) + ['', '', '', '']
+        name, code, disc, full = (str(x or '').strip() for x in r[:4])
+        if not (name or code):
+            continue
+        cleaned.append((name, code, disc, full))
+
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute('DELETE FROM edu_products')
+    conn.executemany(
+        'INSERT INTO edu_products (name, code, discount, full_code) VALUES (?, ?, ?, ?)',
+        cleaned
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'count': len(cleaned), 'message': f'已匯入 {len(cleaned)} 筆'})
+
+
+@app.route('/api/edu-products/rebuild', methods=['POST'])
+def edu_products_rebuild():
+    """用伺服器上目前的教育價 PDF 重新建立查詢清單（不需重新上傳）。"""
+    conn = sqlite3.connect(DB_PATH)
+    row = conn.execute("SELECT stored_name FROM single_docs WHERE category = 'edu'").fetchone()
+    conn.close()
+    if not row or not os.path.exists(os.path.join(UPLOAD_FOLDER, row[0])):
+        return jsonify({'error': '尚未上傳教育價 PDF'}), 404
+    try:
+        rows = extract_edu_products(os.path.join(UPLOAD_FOLDER, row[0]))
+    except Exception as e:
+        return jsonify({'error': f'解析失敗: {e}'}), 500
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute('DELETE FROM edu_products')
+    conn.executemany(
+        'INSERT INTO edu_products (name, code, discount, full_code) VALUES (?, ?, ?, ?)', rows
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'count': len(rows), 'message': f'已建立 {len(rows)} 筆'})
 
 
 init_db()

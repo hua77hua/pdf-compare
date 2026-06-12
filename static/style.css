@@ -802,3 +802,71 @@ tr.row-chg td.sc-b-cell { background: rgba(219,39,119,.05); }
   .doc-block { margin: 10px; min-height: 72vh; }
   .doc-up-btn { padding: 6px 11px; font-size: 12px; }
 }
+
+/* ═══════════════════════════════════════════════
+   教育價查詢  (search + results)
+═══════════════════════════════════════════════ */
+#view-edu .edu-wrap {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column; gap: 12px;
+  padding: 12px; overflow-y: auto;
+}
+.edu-block { flex-shrink: 0; }
+.edu-block .blk-hd { background: linear-gradient(135deg, #2563eb 0%, #60a5fa 100%); }
+.edu-block { border-top: 3px solid #2563eb; }
+.edu-search-bd { display: flex; flex-direction: column; gap: 12px; }
+
+.edu-searchbar {
+  display: flex; align-items: center; gap: 10px;
+  background: #f9fafb; border: 1.5px solid #e5e7eb; border-radius: 14px;
+  padding: 12px 16px; transition: all .2s;
+}
+.edu-searchbar:focus-within { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+.edu-search-ico { font-size: 17px; flex-shrink: 0; }
+.edu-search-inp {
+  flex: 1; background: none; border: none; outline: none;
+  font-size: 15px; font-family: inherit; color: #1f2937;
+}
+.edu-search-inp::placeholder { color: #b9bdc4; }
+.edu-clear {
+  background: #e5e7eb; border: none; border-radius: 50%;
+  width: 22px; height: 22px; font-size: 11px; color: #6b7280;
+  cursor: pointer; flex-shrink: 0; line-height: 1;
+}
+.edu-clear:hover { background: #d1d5db; }
+
+/* Results table */
+.edu-results { min-height: 80px; }
+.edu-tbl-wrap { overflow-x: auto; border: 1px solid #eef0f3; border-radius: 12px; }
+table.edu-tbl { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 460px; }
+table.edu-tbl th {
+  position: sticky; top: 0;
+  background: #f3f6fc; color: #2563eb; text-align: left;
+  font-size: 11px; font-weight: 800; letter-spacing: .4px;
+  padding: 9px 12px; border-bottom: 1px solid #e5e7eb; white-space: nowrap;
+}
+table.edu-tbl td { padding: 9px 12px; border-bottom: 1px solid #f4f4f6; vertical-align: middle; }
+table.edu-tbl tr:hover td { background: #f8fafe; }
+.edu-name  { font-weight: 600; color: #1f2937; }
+.edu-code  { font-family: 'SF Mono', ui-monospace, monospace; color: #6b7280; white-space: nowrap; }
+.edu-disc  { font-weight: 800; color: #16a34a; white-space: nowrap; }
+.edu-full  { font-family: 'SF Mono', ui-monospace, monospace; color: #db2777; white-space: nowrap; }
+mark.edu-hit { background: #fde68a; color: inherit; border-radius: 3px; padding: 0 1px; }
+
+.edu-note {
+  font-size: 12px; color: #9ca3af; padding: 8px 2px 0; text-align: center;
+}
+.edu-empty {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 8px; padding: 28px 16px; text-align: center;
+}
+.edu-empty-ico { font-size: 34px; opacity: .5; }
+.edu-empty-title { font-size: 14px; font-weight: 600; color: #374151; }
+.edu-empty-desc { font-size: 12px; color: #9ca3af; line-height: 1.6; }
+
+#view-edu .doc-block { flex: 1; min-height: 420px; margin: 0; }
+
+@media (max-width: 640px) {
+  #view-edu .edu-wrap { padding: 10px; }
+  .edu-search-inp { font-size: 14px; }
+}

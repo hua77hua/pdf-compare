@@ -1160,6 +1160,11 @@ function toast(msg, type = 'info') {
 // ═══════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
   ['edu', 'sku'].forEach(setupDoc);
+  const q = document.getElementById('eduQuery');
+  if (q) q.addEventListener('input', debounce(() => {
+    document.getElementById('eduClear').style.display = q.value ? 'block' : 'none';
+    loadEduProducts(q.value.trim());
+  }, 220));
 });
 
 function switchView(view) {
@@ -1167,7 +1172,8 @@ function switchView(view) {
     .forEach(b => b.classList.toggle('active', b.dataset.view === view));
   document.querySelectorAll('.view')
     .forEach(s => s.classList.toggle('active', s.id === 'view-' + view));
-  if (view === 'edu' || view === 'sku') loadDoc(view);
+  if (view === 'edu') { loadDoc('edu'); loadEduProducts(document.getElementById('eduQuery').value.trim()); }
+  if (view === 'sku') { loadDoc('sku'); }
 }
 
 function setupDoc(cat) {
@@ -1231,9 +1237,100 @@ async function uploadDoc(cat, file) {
     const res  = await fetch(`${API}/docs/${cat}`, { method: 'POST', body: fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || '上傳失敗');
-    toast('上傳成功！已更新為最新檔案', 'success');
+    if (cat === 'edu' && typeof data.parsed === 'number') {
+      toast(`上傳成功！已自動建立 ${data.parsed} 筆查詢資料`, 'success');
+      loadEduProducts(document.getElementById('eduQuery').value.trim());
+    } else {
+      toast('上傳成功！已更新為最新檔案', 'success');
+    }
   } catch (e) {
     toast('上傳失敗：' + e.message, 'error');
   }
   loadDoc(cat);
+}
+
+// ── 教育價查詢 ──────────────────────────────────
+async function loadEduProducts(q = '') {
+  const box = document.getElementById('eduResults');
+  try {
+    const url = q ? `${API}/edu-products?q=${encodeURIComponent(q)}` : `${API}/edu-products`;
+    const res = await fetch(url);
+    renderEduProducts(await res.json(), q);
+  } catch {
+    box.innerHTML = `<div class="edu-empty"><div class="edu-empty-ico">⚠️</div>
+      <div class="edu-empty-title">載入失敗</div><div class="edu-empty-desc">請重新整理頁面再試</div></div>`;
+  }
+}
+
+function renderEduProducts(rows, q) {
+  const box   = document.getElementById('eduResults');
+  const count = document.getElementById('eduCount');
+
+  if (!rows.length) {
+    if (q) {
+      count.textContent = '查無資料';
+      box.innerHTML = `<div class="edu-empty"><div class="edu-empty-ico">🔍</div>
+        <div class="edu-empty-title">查無「${esc(q)}」的資料</div>
+        <div class="edu-empty-desc">換個品名或貨號關鍵字試試</div></div>`;
+    } else {
+      count.textContent = '尚無資料';
+      box.innerHTML = `<div class="edu-empty"><div class="edu-empty-ico">📄</div>
+        <div class="edu-empty-title">目前沒有查詢資料</div>
+        <div class="edu-empty-desc">已上傳 PDF 的話，點下方按鈕用它建立查詢清單；<br>或在下方上傳新的教育價 PDF（會自動建立）</div>
+        <button class="doc-drop-btn" onclick="rebuildEdu()">🔄 從目前 PDF 建立清單</button></div>`;
+    }
+    return;
+  }
+
+  const LIMIT = 60;
+  const shown = q ? rows : rows.slice(0, LIMIT);
+  count.textContent = q
+    ? `找到 ${rows.length} 筆`
+    : `共 ${rows.length} 筆，可輸入品名或貨號查詢`;
+
+  const amt = v => { v = String(v || '').trim(); return v ? '$' + v : '—'; };
+  const hl  = v => esc(String(v || '')).replace(
+    q ? new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi') : /(?!)/,
+    '<mark class="edu-hit">$1</mark>');
+
+  box.innerHTML = `
+    <div class="edu-tbl-wrap">
+      <table class="edu-tbl">
+        <thead><tr>
+          <th>品名</th><th>貨號</th><th>折抵金額</th><th>全額貨號</th>
+        </tr></thead>
+        <tbody>
+          ${shown.map(r => `<tr>
+            <td class="edu-name">${hl(r.name) || '—'}</td>
+            <td class="edu-code">${hl(r.code) || '—'}</td>
+            <td class="edu-disc">${amt(r.discount)}</td>
+            <td class="edu-full">${hl(r.full_code) || '—'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+    ${(!q && rows.length > LIMIT)
+      ? `<div class="edu-note">顯示前 ${LIMIT} 筆，請輸入關鍵字縮小範圍</div>` : ''}`;
+}
+
+function clearEduQuery() {
+  const q = document.getElementById('eduQuery');
+  q.value = '';
+  document.getElementById('eduClear').style.display = 'none';
+  loadEduProducts('');
+  q.focus();
+}
+
+async function rebuildEdu() {
+  const box = document.getElementById('eduResults');
+  box.innerHTML = `<div class="doc-uploading"><div class="spin"></div><div>解析 PDF 中，請稍候…</div></div>`;
+  try {
+    const res = await fetch(`${API}/edu-products/rebuild`, { method: 'POST' });
+    const d   = await res.json();
+    if (!res.ok) throw new Error(d.error || '建立失敗');
+    toast(`已建立 ${d.count} 筆查詢資料`, 'success');
+  } catch (e) {
+    toast('建立失敗：' + e.message, 'error');
+  }
+  loadEduProducts('');
 }
