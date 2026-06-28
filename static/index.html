@@ -28,7 +28,10 @@
 
   <!-- ══ Main Tabs ══ -->
   <nav class="main-tabs">
-    <button class="mtab active" data-view="compare" onclick="switchView('compare')">
+    <button class="mtab active" data-view="current" onclick="switchView('current')">
+      <span class="mtab-ico">📢</span><span class="mtab-label">目前活動</span>
+    </button>
+    <button class="mtab" data-view="compare" onclick="switchView('compare')">
       <span class="mtab-ico">🔍</span><span class="mtab-label">PDF 比較</span>
     </button>
     <button class="mtab" data-view="edu" onclick="switchView('edu')">
@@ -39,8 +42,24 @@
     </button>
   </nav>
 
+  <!-- ══ View: 目前活動 ══ -->
+  <section id="view-current" class="view active">
+    <div class="block doc-block doc-current">
+      <div class="blk-hd">
+        <span class="blk-ico">📢</span>
+        <div class="blk-hd-text">
+          <div class="blk-title">目前活動</div>
+          <div class="blk-sub" id="currentSub">載入中…</div>
+        </div>
+        <input type="file" id="currentFile" accept=".pdf" style="display:none">
+        <button class="doc-up-btn" onclick="document.getElementById('currentFile').click()">⬆ 上傳新檔</button>
+      </div>
+      <div class="blk-bd doc-bd" id="currentBody"></div>
+    </div>
+  </section>
+
   <!-- ══ View: PDF 比較 ══ -->
-  <section id="view-compare" class="view active">
+  <section id="view-compare" class="view">
   <!-- ══ 4 Blocks Grid ══ -->
   <div class="grid">
 

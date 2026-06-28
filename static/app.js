@@ -1159,7 +1159,8 @@ function toast(msg, type = 'info') {
 //  MAIN TABS + PDF BOARDS  (教育價活動 / 貨號表)
 // ═══════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
-  ['edu', 'sku'].forEach(setupDoc);
+  ['edu', 'sku', 'current'].forEach(setupDoc);
+  loadDoc('current');   // 目前活動是預設首頁，開頁即載入
   const q = document.getElementById('eduQuery');
   if (q) {
     q.addEventListener('input', debounce(() => {
@@ -1184,6 +1185,7 @@ function switchView(view) {
     .forEach(b => b.classList.toggle('active', b.dataset.view === view));
   document.querySelectorAll('.view')
     .forEach(s => s.classList.toggle('active', s.id === 'view-' + view));
+  if (view === 'current') { loadDoc('current'); }
   if (view === 'edu') { loadDoc('edu'); loadEduProducts(document.getElementById('eduQuery').value.trim()); }
   if (view === 'sku') { loadDoc('sku'); }
 }
