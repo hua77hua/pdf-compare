@@ -757,9 +757,11 @@ tr.row-chg td.sc-b-cell { background: rgba(219,39,119,.05); }
 .doc-edu { border-top: 3px solid #2563eb; }
 .doc-sku { border-top: 3px solid #0891b2; }
 .doc-current { border-top: 3px solid #ea580c; }
+.doc-bts { border-top: 3px solid #7c3aed; }
 .doc-edu .blk-hd { background: linear-gradient(135deg, #2563eb 0%, #60a5fa 100%); }
 .doc-sku .blk-hd { background: linear-gradient(135deg, #0891b2 0%, #22d3ee 100%); }
 .doc-current .blk-hd { background: linear-gradient(135deg, #ea580c 0%, #fb923c 100%); }
+.doc-bts .blk-hd { background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%); }
 
 .doc-up-btn {
   background: white; border: none; border-radius: 10px;
@@ -770,7 +772,13 @@ tr.row-chg td.sc-b-cell { background: rgba(219,39,119,.05); }
 .doc-edu .doc-up-btn { color: #2563eb; }
 .doc-sku .doc-up-btn { color: #0891b2; }
 .doc-current .doc-up-btn { color: #ea580c; }
+.doc-bts .doc-up-btn { color: #7c3aed; }
 .doc-up-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,.18); }
+
+/* BTS 查詢結果表：分類 / 活動贈品欄 */
+.bts-grp { font-size: 12px; color: #6b7280; white-space: nowrap; }
+.bts-act { color: #b45309; font-weight: 600; font-size: 12.5px; }
+table.edu-tbl.bts-tbl { min-width: 640px; }
 
 /* Body holds either the PDF viewer or a placeholder */
 .doc-bd { padding: 0; overflow: hidden; display: flex; flex-direction: column; }

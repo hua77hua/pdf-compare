@@ -31,6 +31,9 @@
     <button class="mtab active" data-view="current" onclick="switchView('current')">
       <span class="mtab-ico">📢</span><span class="mtab-label">目前活動</span>
     </button>
+    <button class="mtab" data-view="bts" onclick="switchView('bts')">
+      <span class="mtab-ico">🎒</span><span class="mtab-label">BTS 2026</span>
+    </button>
     <button class="mtab" data-view="compare" onclick="switchView('compare')">
       <span class="mtab-ico">🔍</span><span class="mtab-label">活動比較</span>
     </button>
@@ -55,6 +58,52 @@
         <button class="doc-up-btn" onclick="document.getElementById('currentFile').click()">⬆ 上傳新檔</button>
       </div>
       <div class="blk-bd doc-bd" id="currentBody"></div>
+    </div>
+  </section>
+
+  <!-- ══ View: BTS 2026 ══ -->
+  <section id="view-bts" class="view">
+    <div class="edu-wrap">
+
+      <!-- BTS 活動查詢 -->
+      <div class="block edu-block">
+        <div class="blk-hd">
+          <span class="blk-ico">🎒</span>
+          <div class="blk-hd-text">
+            <div class="blk-title">BTS 2026 活動查詢</div>
+            <div class="blk-sub" id="btsCount">輸入品名、規格或貨號即可查詢</div>
+          </div>
+        </div>
+        <div class="blk-bd edu-search-bd">
+          <div class="edu-note-bar">
+            <span class="edu-note-tag">查詢說明</span>
+            <span class="edu-note-item">可打品名＋規格，例：<b>iPad Air 128G Wifi</b></span>
+            <span class="edu-note-item">帶出 <b>貨號</b>（結帳用）· 會員價/促銷價 · 活動贈品</span>
+          </div>
+          <div class="edu-searchbar">
+            <span class="edu-search-ico">🔍</span>
+            <input type="text" id="btsQuery" class="edu-search-inp"
+                   placeholder="搜尋品名、規格或貨號…（例：iPad Air 128G Wifi、267320）">
+            <button class="edu-clear" id="btsClear" onclick="clearBtsQuery()" style="display:none">✕</button>
+          </div>
+          <div id="btsResults" class="edu-results"></div>
+        </div>
+      </div>
+
+      <!-- BTS 操盤活動（PDF） -->
+      <div class="block doc-block doc-bts">
+        <div class="blk-hd">
+          <span class="blk-ico">📄</span>
+          <div class="blk-hd-text">
+            <div class="blk-title">BTS 操盤活動（PDF）</div>
+            <div class="blk-sub" id="btsSub">載入中…</div>
+          </div>
+          <input type="file" id="btsFile" accept=".pdf" style="display:none">
+          <button class="doc-up-btn" onclick="document.getElementById('btsFile').click()">⬆ 上傳新檔</button>
+        </div>
+        <div class="blk-bd doc-bd" id="btsBody"></div>
+      </div>
+
     </div>
   </section>
 

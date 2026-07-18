@@ -1159,7 +1159,7 @@ function toast(msg, type = 'info') {
 //  MAIN TABS + PDF BOARDS  (教育價活動 / 貨號表)
 // ═══════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
-  ['edu', 'sku', 'current'].forEach(setupDoc);
+  ['edu', 'sku', 'current', 'bts'].forEach(setupDoc);
   loadDoc('current');   // 目前活動是預設首頁，開頁即載入
   const q = document.getElementById('eduQuery');
   if (q) {
@@ -1178,6 +1178,23 @@ document.addEventListener('DOMContentLoaded', () => {
     q.addEventListener('focus', resetOnTap);
     q.addEventListener('click', resetOnTap);
   }
+
+  const bq = document.getElementById('btsQuery');
+  if (bq) {
+    bq.addEventListener('input', debounce(() => {
+      document.getElementById('btsClear').style.display = bq.value ? 'block' : 'none';
+      loadBtsProducts(bq.value.trim());
+    }, 220));
+    const resetBtsOnTap = () => {
+      if (bq.value) {
+        bq.value = '';
+        document.getElementById('btsClear').style.display = 'none';
+        loadBtsProducts('');
+      }
+    };
+    bq.addEventListener('focus', resetBtsOnTap);
+    bq.addEventListener('click', resetBtsOnTap);
+  }
 });
 
 function switchView(view) {
@@ -1188,6 +1205,7 @@ function switchView(view) {
   if (view === 'current') { loadDoc('current'); }
   if (view === 'edu') { loadDoc('edu'); loadEduProducts(document.getElementById('eduQuery').value.trim()); }
   if (view === 'sku') { loadDoc('sku'); }
+  if (view === 'bts') { loadDoc('bts'); loadBtsProducts(document.getElementById('btsQuery').value.trim()); }
 }
 
 function setupDoc(cat) {
@@ -1313,6 +1331,9 @@ async function uploadDoc(cat, file) {
     if (cat === 'edu' && typeof data.parsed === 'number') {
       toast(`上傳成功！已自動建立 ${data.parsed} 筆查詢資料`, 'success');
       loadEduProducts(document.getElementById('eduQuery').value.trim());
+    } else if (cat === 'bts' && typeof data.parsed === 'number') {
+      toast(`上傳成功！已自動建立 ${data.parsed} 筆 BTS 查詢資料`, 'success');
+      loadBtsProducts(document.getElementById('btsQuery').value.trim());
     } else {
       toast('上傳成功！已更新為最新檔案', 'success');
     }
@@ -1419,4 +1440,115 @@ async function rebuildEdu() {
     toast('建立失敗：' + e.message, 'error');
   }
   loadEduProducts('');
+}
+
+// ── BTS 2026 查詢 ───────────────────────────────
+async function loadBtsProducts(q = '') {
+  const box   = document.getElementById('btsResults');
+  const count = document.getElementById('btsCount');
+
+  // 還沒搜尋：只留搜尋框，下面不顯示清單
+  if (!q) {
+    try {
+      const rows = await (await fetch(`${API}/bts-products`)).json();
+      if (!rows.length) {
+        count.textContent = '尚無資料';
+        box.innerHTML = `<div class="edu-empty"><div class="edu-empty-ico">🎒</div>
+          <div class="edu-empty-title">目前沒有 BTS 查詢資料</div>
+          <div class="edu-empty-desc">已上傳 PDF 的話，點下方按鈕用它建立查詢清單；<br>或在下方上傳新的 BTS 操盤 PDF（會自動建立）</div>
+          <button class="doc-drop-btn" onclick="rebuildBts()">🔄 從目前 PDF 建立清單</button></div>`;
+      } else {
+        count.textContent = '輸入品名、規格或貨號開始查詢';
+        box.innerHTML = '';
+      }
+    } catch {
+      count.textContent = '輸入品名、規格或貨號開始查詢';
+      box.innerHTML = '';
+    }
+    return;
+  }
+
+  try {
+    const rows = await (await fetch(`${API}/bts-products?q=${encodeURIComponent(q)}`)).json();
+    renderBtsProducts(rows, q);
+  } catch {
+    box.innerHTML = `<div class="edu-empty"><div class="edu-empty-ico">⚠️</div>
+      <div class="edu-empty-title">載入失敗</div><div class="edu-empty-desc">請重新整理頁面再試</div></div>`;
+  }
+}
+
+function renderBtsProducts(rows, q) {
+  const box   = document.getElementById('btsResults');
+  const count = document.getElementById('btsCount');
+
+  if (!rows.length) {
+    count.textContent = '查無資料';
+    box.innerHTML = `<div class="edu-empty"><div class="edu-empty-ico">🔍</div>
+      <div class="edu-empty-title">查無「${esc(q)}」的資料</div>
+      <div class="edu-empty-desc">換個品名、規格或貨號關鍵字試試</div>
+      <button class="edu-reset-btn" onclick="clearBtsQuery()">🔄 重新查詢</button></div>`;
+    return;
+  }
+
+  const CAP   = 300;
+  const shown = rows.slice(0, CAP);
+  count.textContent = `找到 ${rows.length} 筆`;
+
+  const amt = v => { v = String(v || '').trim(); return v ? '$' + v : '—'; };
+  // 促銷價常是「拆XXX」(搭售折扣)，保留原字；純數字才加 $
+  const promo = v => {
+    v = String(v || '').trim();
+    if (!v) return '—';
+    return /^[\d,]+$/.test(v) ? '$' + v : esc(v);
+  };
+  // 分詞高亮：每個關鍵字各自標記
+  const toks = q.split(/\s+/).filter(Boolean).map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const hl = v => {
+    let s = esc(String(v || ''));
+    for (const t of toks) s = s.replace(new RegExp(`(${t})`, 'gi'), '<mark class="edu-hit">$1</mark>');
+    return s;
+  };
+
+  box.innerHTML = `
+    <div class="edu-tbl-wrap">
+      <table class="edu-tbl bts-tbl">
+        <thead><tr>
+          <th>分類</th><th>品名</th><th>貨號</th><th>會員價</th><th>促銷價</th><th>活動 / 贈品</th>
+        </tr></thead>
+        <tbody>
+          ${shown.map(r => `<tr>
+            <td class="bts-grp">${hl(r.grp) || '—'}</td>
+            <td class="edu-name">${hl(r.name) || '—'}</td>
+            <td class="edu-code">${hl(r.code) || '—'}</td>
+            <td class="edu-disc">${amt(r.member_price)}</td>
+            <td class="edu-disc">${promo(r.promo_price)}</td>
+            <td class="bts-act">${r.activity ? esc(r.activity) : '—'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>
+    ${rows.length > CAP ? `<div class="edu-note">符合 ${rows.length} 筆，顯示前 ${CAP} 筆，請縮小關鍵字</div>` : ''}
+    <div class="edu-reset-row"><button class="edu-reset-btn" onclick="clearBtsQuery()">🔄 重新查詢</button></div>`;
+}
+
+function clearBtsQuery() {
+  const q = document.getElementById('btsQuery');
+  q.value = '';
+  document.getElementById('btsClear').style.display = 'none';
+  loadBtsProducts('');
+  q.focus();
+}
+
+async function rebuildBts() {
+  const box = document.getElementById('btsResults');
+  box.innerHTML = `<div class="doc-uploading"><div class="spin"></div><div>解析 PDF 中，請稍候…</div></div>`;
+  try {
+    const res = await fetch(`${API}/bts-products/rebuild`, { method: 'POST' });
+    const d   = await res.json();
+    if (!res.ok) throw new Error(d.error || '建立失敗');
+    toast(`已建立 ${d.count} 筆 BTS 查詢資料`, 'success');
+  } catch (e) {
+    toast('建立失敗：' + e.message, 'error');
+  }
+  loadBtsProducts('');
 }

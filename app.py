@@ -56,12 +56,26 @@ def init_db():
             full_code TEXT DEFAULT ''
         )
     ''')
+    # BTS 活動查詢清單：分類 / 貨號 / 品名 / 型號 / 會員價 / 折讓額 / 促銷價 / 活動(贈品)
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS bts_products (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            grp          TEXT DEFAULT '',
+            code         TEXT DEFAULT '',
+            name         TEXT DEFAULT '',
+            model        TEXT DEFAULT '',
+            member_price TEXT DEFAULT '',
+            discount     TEXT DEFAULT '',
+            promo_price  TEXT DEFAULT '',
+            activity     TEXT DEFAULT ''
+        )
+    ''')
     conn.commit()
     conn.close()
 
 
 # Categories that each keep a single most-recent PDF
-DOC_CATEGORIES = {'edu', 'sku', 'current'}
+DOC_CATEGORIES = {'edu', 'sku', 'current', 'bts'}
 
 
 def extract_pdf_data(filepath):
@@ -137,6 +151,71 @@ def extract_edu_products(filepath):
                     if '教育價' in code or '折抵' in code or not re.search(r'\d', code):
                         continue
                     out.append((name, code, disc, full))
+    return out
+
+
+def _bts_prefix(s):
+    """Leading 4 non-space chars — used to tell a same-model colour/size variant
+    (shares the group header's prefix) from a bundled accessory (different brand)."""
+    return re.sub(r'\s+', '', str(s or ''))[:4]
+
+
+def extract_bts_products(filepath):
+    """Parse the BTS 操盤 PDF into rows of
+    (分類, 貨號, 品名, 型號, 會員價, 折讓額, 促銷價, 活動/贈品).
+
+    Layout is a fixed 8-column table (分類｜貨號｜品名｜商品型號｜會員價｜折讓額｜促銷價｜活動).
+    The 分類 and 活動 cells are merged over each model's colour/size variants, so we
+    carry them forward — but only to genuine variants (whose 品名 shares the group
+    header's prefix), never to the bundled accessories that follow each model."""
+    out = []
+    colmap = None                 # header only appears on page 1; reuse across pages
+    grp = grp_name = grp_act = ''
+    with pdfplumber.open(filepath) as pdf:
+        for pg in pdf.pages:
+            for t in (pg.extract_tables() or []):
+                for r in t:
+                    cells = [_clean_cell(c) for c in r]
+                    # Header row → learn column positions
+                    if '貨號' in cells and '品名' in cells:
+                        def idx(pred):
+                            for i, c in enumerate(cells):
+                                if pred(c):
+                                    return i
+                            return -1
+                        colmap = dict(
+                            grp=0,
+                            code=idx(lambda c: c == '貨號'),
+                            name=idx(lambda c: c == '品名'),
+                            model=idx(lambda c: '型號' in c),
+                            member=idx(lambda c: '會員' in c),
+                            disc=idx(lambda c: '折讓' in c),
+                            promo=idx(lambda c: '促銷' in c),
+                            act=idx(lambda c: c == '活動'),
+                        )
+                        continue
+                    if colmap is None:
+                        colmap = dict(grp=0, code=1, name=2, model=3,
+                                      member=4, disc=5, promo=6, act=7)
+
+                    def g(k):
+                        i = colmap.get(k, -1)
+                        return cells[i] if 0 <= i < len(cells) else ''
+
+                    code, name, act = g('code'), g('name'), g('act')
+                    if not re.fullmatch(r'\d{4,7}', code):
+                        continue                      # skip header/blank/label rows
+
+                    if g('grp'):                      # new model group starts here
+                        grp, grp_name, grp_act = g('grp'), name, act
+                        row_grp, row_act = grp, act
+                    elif grp_name and _bts_prefix(name) == _bts_prefix(grp_name):
+                        row_grp, row_act = grp, (act or grp_act)   # colour/size variant
+                    else:
+                        row_grp, row_act = '', act                 # bundled accessory
+
+                    out.append((row_grp, code, name, g('model'),
+                                g('member'), g('disc'), g('promo'), row_act))
     return out
 
 
@@ -626,6 +705,25 @@ def upload_doc(category):
             conn.close()
         parsed = len(rows)
 
+    # BTS 操盤 PDF：自動解析表格，更新可搜尋清單（換新檔即覆蓋舊資料）
+    elif category == 'bts':
+        try:
+            rows = extract_bts_products(filepath)
+        except Exception:
+            rows = []
+        if rows:
+            conn = sqlite3.connect(DB_PATH)
+            conn.execute('DELETE FROM bts_products')
+            conn.executemany(
+                'INSERT INTO bts_products '
+                '(grp, code, name, model, member_price, discount, promo_price, activity) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                rows
+            )
+            conn.commit()
+            conn.close()
+        parsed = len(rows)
+
     resp = {'message': '上傳成功', 'name': file.filename}
     if parsed is not None:
         resp['parsed'] = parsed
@@ -709,6 +807,66 @@ def edu_products_rebuild():
     conn.execute('DELETE FROM edu_products')
     conn.executemany(
         'INSERT INTO edu_products (name, code, discount, full_code) VALUES (?, ?, ?, ?)', rows
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'count': len(rows), 'message': f'已建立 {len(rows)} 筆'})
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  BTS 活動查詢清單  (分類 / 貨號 / 品名 / 型號 / 會員價 / 折讓額 / 促銷價 / 活動)
+#  Token search: 「iPad Air 128G Wifi」→ every whitespace-separated token must
+#  appear somewhere in the row (spaces and hyphens ignored), so word order and
+#  "Wi-Fi" vs "Wifi" don't matter. Results are de-duplicated by 貨號.
+# ═══════════════════════════════════════════════════════════════════════════
+def _bts_norm(s):
+    return re.sub(r'[\s\-]+', '', str(s or '')).lower()
+
+
+@app.route('/api/bts-products', methods=['GET'])
+def bts_products():
+    q = request.args.get('q', '').strip()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        'SELECT id, grp, code, name, model, member_price, discount, promo_price, activity '
+        'FROM bts_products ORDER BY id'
+    ).fetchall()
+    conn.close()
+
+    tokens = [_bts_norm(t) for t in q.split() if t.strip()]
+    out, seen = [], set()
+    for r in rows:
+        d = dict(r)
+        if tokens:
+            blob = _bts_norm(' '.join([d['grp'], d['name'], d['model'], d['code']]))
+            if not all(t in blob for t in tokens):
+                continue
+        if d['code'] in seen:          # collapse accessories repeated per model group
+            continue
+        seen.add(d['code'])
+        out.append(d)
+    return jsonify(out)
+
+
+@app.route('/api/bts-products/rebuild', methods=['POST'])
+def bts_products_rebuild():
+    """用伺服器上目前的 BTS PDF 重新建立查詢清單（不需重新上傳）。"""
+    conn = sqlite3.connect(DB_PATH)
+    row = conn.execute("SELECT stored_name FROM single_docs WHERE category = 'bts'").fetchone()
+    conn.close()
+    if not row or not os.path.exists(os.path.join(UPLOAD_FOLDER, row[0])):
+        return jsonify({'error': '尚未上傳 BTS PDF'}), 404
+    try:
+        rows = extract_bts_products(os.path.join(UPLOAD_FOLDER, row[0]))
+    except Exception as e:
+        return jsonify({'error': f'解析失敗: {e}'}), 500
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute('DELETE FROM bts_products')
+    conn.executemany(
+        'INSERT INTO bts_products '
+        '(grp, code, name, model, member_price, discount, promo_price, activity) '
+        'VALUES (?, ?, ?, ?, ?, ?, ?, ?)', rows
     )
     conn.commit()
     conn.close()
