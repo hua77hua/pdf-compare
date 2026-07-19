@@ -1515,29 +1515,38 @@ function renderBtsProducts(data, q) {
       <td class="bts-cut-cell">${bundle(a.promo_price)}</td>
     </tr>`).join('');
 
+  const toNum = s => parseInt(String(s || '').replace(/[^0-9]/g, '') || '0', 10);
+
   let html = '';
 
-  // 每個機種一張卡：分類 + 贈品 + 機種變體 + 搭售拆帳
+  // 每個機種一張卡：分類 + 贈品 + (拆帳合計) + 機種變體(含拆帳後主機價) + 搭售拆帳
   for (const g of groups) {
+    const credit = g.bundle_credit || 0;
     html += `<div class="bts-group">
       <div class="bts-group-hd">
         <span class="bts-group-name">${hl(g.grp) || '（其他）'}</span>
         ${g.gift ? `<span class="bts-gift">🎁 ${esc(g.gift)}</span>` : ''}
+        ${credit ? `<span class="bts-credit">🧮 買齊搭售可拆 $${credit.toLocaleString()}</span>` : ''}
       </div>
       <div class="edu-tbl-wrap">
         <table class="edu-tbl">
-          <thead><tr><th>品名</th><th>貨號</th><th>會員價</th></tr></thead>
+          <thead><tr><th>品名</th><th>貨號</th><th>原始價</th>${credit ? '<th>拆帳後主機價</th>' : ''}</tr></thead>
           <tbody>
-            ${g.devices.map(d => `<tr>
+            ${g.devices.map(d => {
+              const base = toNum(d.member_price);
+              const net  = base ? base - credit : 0;
+              return `<tr>
               <td class="edu-name">${hl(d.name) || '—'}</td>
               <td class="edu-code">${hl(d.code) || '—'}</td>
               <td class="edu-disc">${amt(d.member_price)}</td>
-            </tr>`).join('')}
+              ${credit ? `<td class="bts-net">${base ? '$' + net.toLocaleString() : '—'}</td>` : ''}
+            </tr>`;
+            }).join('')}
           </tbody>
         </table>
       </div>`;
     if (g.accessories && g.accessories.length) {
-      html += `<div class="bts-sub-title">🔖 搭售 / 拆帳配件</div>
+      html += `<div class="bts-sub-title">🔖 拆帳配件（贈品內容）${credit ? ` · 合計拆 $${credit.toLocaleString()}` : ''}</div>
         <div class="edu-tbl-wrap">
           <table class="edu-tbl">
             <thead><tr><th>品名</th><th>貨號</th><th>會員價</th><th>拆帳</th></tr></thead>

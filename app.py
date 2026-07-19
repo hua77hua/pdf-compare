@@ -830,6 +830,32 @@ def _bts_norm(s):
     return re.sub(r'[\s\-]+', '', str(s or '')).lower()
 
 
+# Trailing colour/短-spec words used to merge 黑/白 variants of one accessory
+_BTS_COLORS = {
+    '黑', '白', '黑色', '白色', '藍', '藍色', '天藍', '星光', '午夜', '銀', '銀色',
+    '金', '金色', '紫', '紫色', '綠', '綠色', '粉', '粉色', '奶茶', '新', '原色',
+    '太空灰', '太空黑', '深空黑', '珊瑚', '沙漠',
+}
+
+
+def _bts_acc_base(name):
+    """Split an accessory 品名 into (base, colour) so colour variants merge.
+    e.g. '...電源供應器2C-黑色' → ('...電源供應器2C', '黑色')."""
+    s = str(name or '').strip()
+    if '-' in s:
+        head, tail = s.rsplit('-', 1)
+        t = tail.strip()
+        if t in _BTS_COLORS or len(t) <= 3:
+            return head.strip(), t
+    return s, ''
+
+
+def _bts_cut(promo):
+    """拆帳(配件金) amount from a 促銷價 like '拆1750' → 1750 (0 if none)."""
+    m = re.search(r'拆\s*([\d,]+)', str(promo or ''))
+    return int(m.group(1).replace(',', '')) if m else 0
+
+
 @app.route('/api/bts-products', methods=['GET'])
 def bts_products():
     q = request.args.get('q', '').strip()
@@ -854,32 +880,58 @@ def bts_products():
                 'member_price': d['member_price'], 'promo_price': d['promo_price']}
 
     from collections import OrderedDict
-    # Pre-index each model group's gift + its bundled accessories (deduped by 貨號)
-    gift_by_grp, acc_by_grp, acc_seen = {}, OrderedDict(), set()
+    # Pre-index each model group's gift + bundled accessories.
+    # Accessories are merged by (base-name, 拆帳, 會員價) so colour variants
+    # (黑/白) collapse into one line and count once toward the 拆帳合計.
+    gift_by_grp, acc_by_grp = {}, OrderedDict()
     for d in rows:
         if d['kind'] == 'device' and d['grp'] and d['activity']:
             gift_by_grp.setdefault(d['grp'], d['activity'])
         if d['kind'] == 'accessory' and d['grp']:
-            key = (d['grp'], d['code'])
-            if key not in acc_seen:
-                acc_seen.add(key)
-                acc_by_grp.setdefault(d['grp'], []).append(slim(d))
+            base, color = _bts_acc_base(d['name'])
+            bucket = acc_by_grp.setdefault(d['grp'], OrderedDict())
+            key = (base, d['promo_price'], d['member_price'])
+            e = bucket.get(key)
+            if e is None:
+                e = {'base': base, 'first_name': d['name'], 'codes': [], 'colors': [],
+                     'member_price': d['member_price'], 'promo_price': d['promo_price'],
+                     'credit': _bts_cut(d['promo_price'])}
+                bucket[key] = e
+            if d['code'] not in e['codes']:
+                e['codes'].append(d['code'])
+            if color and color not in e['colors']:
+                e['colors'].append(color)
 
-    # Groups whose device variants match → show variants + gift + full bundle list
+    def finalize_acc(bucket):
+        """OrderedDict of merged entries → list of display rows + total 拆帳."""
+        out, total = [], 0
+        for e in bucket.values():
+            if len(e['codes']) > 1:
+                name = e['base'] + (f'（{"/".join(e["colors"])}）' if e['colors'] else '')
+                code = ' / '.join(e['codes'])
+            else:
+                name, code = e['first_name'], e['codes'][0]
+            total += e['credit']          # each distinct accessory counted once
+            out.append({'code': code, 'name': name, 'member_price': e['member_price'],
+                        'promo_price': e['promo_price'], 'credit': e['credit']})
+        return out, total
+
+    # Groups whose device variants match → variants + gift + bundle list + 拆帳合計
     groups, dev_seen = OrderedDict(), set()
     for d in rows:
         if d['kind'] == 'device' and matches(d):
             g = groups.get(d['grp'])
             if g is None:
+                acc_list, credit = finalize_acc(acc_by_grp.get(d['grp'], OrderedDict()))
                 g = {'grp': d['grp'], 'gift': gift_by_grp.get(d['grp'], ''),
-                     'devices': [], 'accessories': acc_by_grp.get(d['grp'], [])}
+                     'devices': [], 'accessories': acc_list, 'bundle_credit': credit}
                 groups[d['grp']] = g
             if d['code'] not in dev_seen:
                 dev_seen.add(d['code'])
                 g['devices'].append(slim(d))
 
     # Accessory-only matches not already shown under a matched group
-    shown_acc = {a['code'] for g in groups.values() for a in g['accessories']}
+    shown_acc = {c for g in groups.values() for a in g['accessories'] for c in a['code'].split(' / ')}
     loose, loose_seen = [], set()
     for d in rows:
         if d['kind'] == 'accessory' and matches(d):
