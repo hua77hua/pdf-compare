@@ -56,7 +56,7 @@ def init_db():
             full_code TEXT DEFAULT ''
         )
     ''')
-    # BTS 活動查詢清單：分類 / 貨號 / 品名 / 型號 / 會員價 / 折讓額 / 促銷價 / 活動(贈品)
+    # BTS 活動查詢清單：分類 / 貨號 / 品名 / 型號 / 會員價 / 折讓額 / 促銷價 / 活動(贈品) / kind
     conn.execute('''
         CREATE TABLE IF NOT EXISTS bts_products (
             id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -67,9 +67,14 @@ def init_db():
             member_price TEXT DEFAULT '',
             discount     TEXT DEFAULT '',
             promo_price  TEXT DEFAULT '',
-            activity     TEXT DEFAULT ''
+            activity     TEXT DEFAULT '',
+            kind         TEXT DEFAULT 'device'
         )
     ''')
+    # Migrate older bts_products tables that predate the `kind` column
+    cols = [r[1] for r in conn.execute("PRAGMA table_info(bts_products)")]
+    if 'kind' not in cols:
+        conn.execute("ALTER TABLE bts_products ADD COLUMN kind TEXT DEFAULT 'device'")
     conn.commit()
     conn.close()
 
@@ -162,12 +167,14 @@ def _bts_prefix(s):
 
 def extract_bts_products(filepath):
     """Parse the BTS 操盤 PDF into rows of
-    (分類, 貨號, 品名, 型號, 會員價, 折讓額, 促銷價, 活動/贈品).
+    (分類, 貨號, 品名, 型號, 會員價, 折讓額, 促銷價, 活動/贈品, kind).
 
     Layout is a fixed 8-column table (分類｜貨號｜品名｜商品型號｜會員價｜折讓額｜促銷價｜活動).
-    The 分類 and 活動 cells are merged over each model's colour/size variants, so we
-    carry them forward — but only to genuine variants (whose 品名 shares the group
-    header's prefix), never to the bundled accessories that follow each model."""
+    Each model group = a header row + its colour/size variants, then the bundled
+    accessories (搭售/拆帳) sold with that model. 分類 and 活動(gift) cells are merged,
+    so we carry them forward to genuine variants (品名 shares the header prefix) only.
+    Accessories keep the same 分類 as the model they sit under (so a model search can
+    surface its bundle) but are tagged kind='accessory' and carry no gift."""
     out = []
     colmap = None                 # header only appears on page 1; reuse across pages
     grp = grp_name = grp_act = ''
@@ -208,14 +215,14 @@ def extract_bts_products(filepath):
 
                     if g('grp'):                      # new model group starts here
                         grp, grp_name, grp_act = g('grp'), name, act
-                        row_grp, row_act = grp, act
+                        row_grp, row_act, kind = grp, act, 'device'
                     elif grp_name and _bts_prefix(name) == _bts_prefix(grp_name):
-                        row_grp, row_act = grp, (act or grp_act)   # colour/size variant
+                        row_grp, row_act, kind = grp, (act or grp_act), 'device'   # variant
                     else:
-                        row_grp, row_act = '', act                 # bundled accessory
+                        row_grp, row_act, kind = grp, '', 'accessory'              # bundle
 
                     out.append((row_grp, code, name, g('model'),
-                                g('member'), g('disc'), g('promo'), row_act))
+                                g('member'), g('disc'), g('promo'), row_act, kind))
     return out
 
 
@@ -716,8 +723,8 @@ def upload_doc(category):
             conn.execute('DELETE FROM bts_products')
             conn.executemany(
                 'INSERT INTO bts_products '
-                '(grp, code, name, model, member_price, discount, promo_price, activity) '
-                'VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+                '(grp, code, name, model, member_price, discount, promo_price, activity, kind) '
+                'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
                 rows
             )
             conn.commit()
@@ -828,25 +835,62 @@ def bts_products():
     q = request.args.get('q', '').strip()
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    rows = conn.execute(
-        'SELECT id, grp, code, name, model, member_price, discount, promo_price, activity '
+    rows = [dict(r) for r in conn.execute(
+        'SELECT grp, code, name, model, member_price, discount, promo_price, activity, kind '
         'FROM bts_products ORDER BY id'
-    ).fetchall()
+    ).fetchall()]
     conn.close()
 
     tokens = [_bts_norm(t) for t in q.split() if t.strip()]
-    out, seen = [], set()
-    for r in rows:
-        d = dict(r)
-        if tokens:
-            blob = _bts_norm(' '.join([d['grp'], d['name'], d['model'], d['code']]))
-            if not all(t in blob for t in tokens):
+
+    def matches(d):
+        if not tokens:
+            return True
+        blob = _bts_norm(' '.join([d['grp'], d['name'], d['model'], d['code']]))
+        return all(t in blob for t in tokens)
+
+    def slim(d):
+        return {'code': d['code'], 'name': d['name'],
+                'member_price': d['member_price'], 'promo_price': d['promo_price']}
+
+    from collections import OrderedDict
+    # Pre-index each model group's gift + its bundled accessories (deduped by 貨號)
+    gift_by_grp, acc_by_grp, acc_seen = {}, OrderedDict(), set()
+    for d in rows:
+        if d['kind'] == 'device' and d['grp'] and d['activity']:
+            gift_by_grp.setdefault(d['grp'], d['activity'])
+        if d['kind'] == 'accessory' and d['grp']:
+            key = (d['grp'], d['code'])
+            if key not in acc_seen:
+                acc_seen.add(key)
+                acc_by_grp.setdefault(d['grp'], []).append(slim(d))
+
+    # Groups whose device variants match → show variants + gift + full bundle list
+    groups, dev_seen = OrderedDict(), set()
+    for d in rows:
+        if d['kind'] == 'device' and matches(d):
+            g = groups.get(d['grp'])
+            if g is None:
+                g = {'grp': d['grp'], 'gift': gift_by_grp.get(d['grp'], ''),
+                     'devices': [], 'accessories': acc_by_grp.get(d['grp'], [])}
+                groups[d['grp']] = g
+            if d['code'] not in dev_seen:
+                dev_seen.add(d['code'])
+                g['devices'].append(slim(d))
+
+    # Accessory-only matches not already shown under a matched group
+    shown_acc = {a['code'] for g in groups.values() for a in g['accessories']}
+    loose, loose_seen = [], set()
+    for d in rows:
+        if d['kind'] == 'accessory' and matches(d):
+            if d['code'] in shown_acc or d['code'] in loose_seen:
                 continue
-        if d['code'] in seen:          # collapse accessories repeated per model group
-            continue
-        seen.add(d['code'])
-        out.append(d)
-    return jsonify(out)
+            loose_seen.add(d['code'])
+            loose.append(slim(d))
+
+    group_list = list(groups.values())
+    total = sum(len(g['devices']) for g in group_list) + len(loose)
+    return jsonify({'groups': group_list, 'accessories': loose, 'total': total})
 
 
 @app.route('/api/bts-products/rebuild', methods=['POST'])
@@ -865,8 +909,8 @@ def bts_products_rebuild():
     conn.execute('DELETE FROM bts_products')
     conn.executemany(
         'INSERT INTO bts_products '
-        '(grp, code, name, model, member_price, discount, promo_price, activity) '
-        'VALUES (?, ?, ?, ?, ?, ?, ?, ?)', rows
+        '(grp, code, name, model, member_price, discount, promo_price, activity, kind) '
+        'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', rows
     )
     conn.commit()
     conn.close()

@@ -1450,8 +1450,8 @@ async function loadBtsProducts(q = '') {
   // 還沒搜尋：只留搜尋框，下面不顯示清單
   if (!q) {
     try {
-      const rows = await (await fetch(`${API}/bts-products`)).json();
-      if (!rows.length) {
+      const data = await (await fetch(`${API}/bts-products`)).json();
+      if (!data.total) {
         count.textContent = '尚無資料';
         box.innerHTML = `<div class="edu-empty"><div class="edu-empty-ico">🎒</div>
           <div class="edu-empty-title">目前沒有 BTS 查詢資料</div>
@@ -1469,19 +1469,21 @@ async function loadBtsProducts(q = '') {
   }
 
   try {
-    const rows = await (await fetch(`${API}/bts-products?q=${encodeURIComponent(q)}`)).json();
-    renderBtsProducts(rows, q);
+    const data = await (await fetch(`${API}/bts-products?q=${encodeURIComponent(q)}`)).json();
+    renderBtsProducts(data, q);
   } catch {
     box.innerHTML = `<div class="edu-empty"><div class="edu-empty-ico">⚠️</div>
       <div class="edu-empty-title">載入失敗</div><div class="edu-empty-desc">請重新整理頁面再試</div></div>`;
   }
 }
 
-function renderBtsProducts(rows, q) {
+function renderBtsProducts(data, q) {
   const box   = document.getElementById('btsResults');
   const count = document.getElementById('btsCount');
+  const groups = data.groups || [];
+  const loose  = data.accessories || [];
 
-  if (!rows.length) {
+  if (!data.total) {
     count.textContent = '查無資料';
     box.innerHTML = `<div class="edu-empty"><div class="edu-empty-ico">🔍</div>
       <div class="edu-empty-title">查無「${esc(q)}」的資料</div>
@@ -1489,46 +1491,78 @@ function renderBtsProducts(rows, q) {
       <button class="edu-reset-btn" onclick="clearBtsQuery()">🔄 重新查詢</button></div>`;
     return;
   }
+  count.textContent = `找到 ${data.total} 筆`;
 
-  const CAP   = 300;
-  const shown = rows.slice(0, CAP);
-  count.textContent = `找到 ${rows.length} 筆`;
-
-  const amt = v => { v = String(v || '').trim(); return v ? '$' + v : '—'; };
-  // 促銷價常是「拆XXX」(搭售折扣)，保留原字；純數字才加 $
-  const promo = v => {
-    v = String(v || '').trim();
-    if (!v) return '—';
-    return /^[\d,]+$/.test(v) ? '$' + v : esc(v);
-  };
-  // 分詞高亮：每個關鍵字各自標記
+  // 分詞高亮
   const toks = q.split(/\s+/).filter(Boolean).map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
   const hl = v => {
     let s = esc(String(v || ''));
     for (const t of toks) s = s.replace(new RegExp(`(${t})`, 'gi'), '<mark class="edu-hit">$1</mark>');
     return s;
   };
+  const amt = v => { v = String(v || '').trim(); return v ? '$' + v : '—'; };
+  // 促銷價常是「拆XXX」(搭售拆帳)，保留原字；純數字才加 $
+  const bundle = v => {
+    v = String(v || '').trim();
+    if (!v) return '—';
+    return /^[\d,]+$/.test(v) ? '$' + v : `<span class="bts-cut">${esc(v)}</span>`;
+  };
 
-  box.innerHTML = `
-    <div class="edu-tbl-wrap">
-      <table class="edu-tbl bts-tbl">
-        <thead><tr>
-          <th>分類</th><th>品名</th><th>貨號</th><th>會員價</th><th>促銷價</th><th>活動 / 贈品</th>
-        </tr></thead>
-        <tbody>
-          ${shown.map(r => `<tr>
-            <td class="bts-grp">${hl(r.grp) || '—'}</td>
-            <td class="edu-name">${hl(r.name) || '—'}</td>
-            <td class="edu-code">${hl(r.code) || '—'}</td>
-            <td class="edu-disc">${amt(r.member_price)}</td>
-            <td class="edu-disc">${promo(r.promo_price)}</td>
-            <td class="bts-act">${r.activity ? esc(r.activity) : '—'}</td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
-    </div>
-    ${rows.length > CAP ? `<div class="edu-note">符合 ${rows.length} 筆，顯示前 ${CAP} 筆，請縮小關鍵字</div>` : ''}
-    <div class="edu-reset-row"><button class="edu-reset-btn" onclick="clearBtsQuery()">🔄 重新查詢</button></div>`;
+  const accRows = list => list.map(a => `<tr>
+      <td class="edu-name">${hl(a.name) || '—'}</td>
+      <td class="edu-code">${hl(a.code) || '—'}</td>
+      <td class="edu-disc">${amt(a.member_price)}</td>
+      <td class="bts-cut-cell">${bundle(a.promo_price)}</td>
+    </tr>`).join('');
+
+  let html = '';
+
+  // 每個機種一張卡：分類 + 贈品 + 機種變體 + 搭售拆帳
+  for (const g of groups) {
+    html += `<div class="bts-group">
+      <div class="bts-group-hd">
+        <span class="bts-group-name">${hl(g.grp) || '（其他）'}</span>
+        ${g.gift ? `<span class="bts-gift">🎁 ${esc(g.gift)}</span>` : ''}
+      </div>
+      <div class="edu-tbl-wrap">
+        <table class="edu-tbl">
+          <thead><tr><th>品名</th><th>貨號</th><th>會員價</th></tr></thead>
+          <tbody>
+            ${g.devices.map(d => `<tr>
+              <td class="edu-name">${hl(d.name) || '—'}</td>
+              <td class="edu-code">${hl(d.code) || '—'}</td>
+              <td class="edu-disc">${amt(d.member_price)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+    if (g.accessories && g.accessories.length) {
+      html += `<div class="bts-sub-title">🔖 搭售 / 拆帳配件</div>
+        <div class="edu-tbl-wrap">
+          <table class="edu-tbl">
+            <thead><tr><th>品名</th><th>貨號</th><th>會員價</th><th>拆帳</th></tr></thead>
+            <tbody>${accRows(g.accessories)}</tbody>
+          </table>
+        </div>`;
+    }
+    html += `</div>`;
+  }
+
+  // 直接搜到的配件（不屬於上面已顯示的機種組）
+  if (loose.length) {
+    html += `<div class="bts-group">
+      <div class="bts-group-hd"><span class="bts-group-name">🔌 配件 / 拆帳</span></div>
+      <div class="edu-tbl-wrap">
+        <table class="edu-tbl">
+          <thead><tr><th>品名</th><th>貨號</th><th>會員價</th><th>拆帳</th></tr></thead>
+          <tbody>${accRows(loose)}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }
+
+  html += `<div class="edu-reset-row"><button class="edu-reset-btn" onclick="clearBtsQuery()">🔄 重新查詢</button></div>`;
+  box.innerHTML = html;
 }
 
 function clearBtsQuery() {
