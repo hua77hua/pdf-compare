@@ -1444,8 +1444,9 @@ async function rebuildEdu() {
 }
 
 // ── BTS 2026 查詢 ───────────────────────────────
-// 教育價對照表：把「教育價貨號」分頁(edu_products)的資料抓來，
-// 以「全額貨號 / 教育價貨號」為鍵，供 BTS 搜尋時比對提示折抵。
+// 教育價對照表：把「教育價貨號」分頁(edu_products)的資料抓來。
+// 一筆資料含兩個互為配對的貨號（貨號 / 全額貨號）＋折抵金額；
+// 用其中任一個貨號查得到，就回傳「配對的另一個貨號」給 BTS 提示。
 let _btsEduMap = null;
 const _eduKey = s => String(s || '').replace(/[^0-9A-Za-z]/g, '');
 async function ensureBtsEduMap() {
@@ -1454,19 +1455,32 @@ async function ensureBtsEduMap() {
   try {
     const rows = await (await fetch(`${API}/edu-products`)).json();
     for (const r of (rows || [])) {
-      const info = {
-        edu:  String(r.code || '').trim(),        // 教育價折抵貨號
-        disc: String(r.discount || '').trim(),    // 折抵金額
+      const code = String(r.code || '').trim();       // 貨號
+      const full = String(r.full_code || '').trim();  // 全額貨號
+      const entry = {
+        code, full,
+        kCode: _eduKey(code),
+        kFull: _eduKey(full),
+        disc: String(r.discount || '').trim(),         // 折抵金額
         name: String(r.name || '').trim(),
       };
-      const full = _eduKey(r.full_code);          // 全額貨號 → BTS 一般會列這個
-      const edu  = _eduKey(r.code);
-      if (full) m.set(full, info);                // 優先用全額貨號比對
-      if (edu && !m.has(edu)) m.set(edu, info);   // 退而求其次：教育價貨號本身
+      if (entry.kCode) m.set(entry.kCode, entry);
+      if (entry.kFull && !m.has(entry.kFull)) m.set(entry.kFull, entry);
     }
   } catch { /* 抓不到就不提示，不影響搜尋 */ }
   _btsEduMap = m;
   return m;
+}
+
+// 給一個 BTS 機種貨號，回傳配對的「教育貨號 + 折抵」（不是查詢碼本身）
+function eduPairFor(deviceCode) {
+  if (!_btsEduMap) return null;
+  const k = _eduKey(deviceCode);
+  const e = _btsEduMap.get(k);
+  if (!e || !e.disc) return null;
+  const other = (e.kCode === k) ? e.full : e.code;   // 回傳配對的另一個貨號
+  if (!other || _eduKey(other) === k) return null;
+  return { edu: other, disc: e.disc, name: e.name };
 }
 
 async function loadBtsProducts(q = '') {
@@ -1545,19 +1559,21 @@ function renderBtsProducts(data, q) {
   const toNum = s => parseInt(String(s || '').replace(/[^0-9]/g, '') || '0', 10);
 
   // 教育價折抵提示：機種貨號若對應到「教育價貨號」清單，
-  // 就在機種卡最下方以橘色字提示 例：iPad Air 11吋教育貨號 194188 折1700
+  // 就在機種卡最下方以橘色字提示配對的教育貨號＋折抵
+  // 例：13.6吋MBA 教育價貨號 267540 折 $3,310
   const eduHintLines = devices => {
     if (!_btsEduMap) return '';
     const seen = new Set();
     const lines = [];
     for (const d of (devices || [])) {
-      const info = _btsEduMap.get(_eduKey(d.code));
-      if (!info || !info.disc || !info.edu) continue;
+      const info = eduPairFor(d.code);
+      if (!info) continue;
       const k = _eduKey(info.edu);
       if (seen.has(k)) continue;
       seen.add(k);
-      const nm = info.name || '';
-      lines.push(`<div class="bts-edu-hint">${esc(nm)}教育貨號 <b>${esc(info.edu)}</b> 折${esc(info.disc)}</div>`);
+      const nm = info.name ? esc(info.name) + ' ' : '';
+      const disc = String(info.disc).replace(/^\$/, '');
+      lines.push(`<div class="bts-edu-hint">${nm}教育價貨號 <b>${esc(info.edu)}</b> 折 $${esc(disc)}</div>`);
     }
     return lines.join('');
   };
