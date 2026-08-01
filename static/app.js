@@ -1560,7 +1560,7 @@ function renderBtsProducts(data, q) {
 
   // 教育價折抵提示：機種貨號若對應到「教育價貨號」清單，
   // 就在機種卡最下方以橘色字提示配對的教育貨號＋折抵
-  // 例：13.6吋MBA 教育價貨號 267540 折 $3,310
+  // 例：教育價貨號 267540 折 $3,310
   const eduHintLines = devices => {
     if (!_btsEduMap) return '';
     const seen = new Set();
@@ -1571,9 +1571,8 @@ function renderBtsProducts(data, q) {
       const k = _eduKey(info.edu);
       if (seen.has(k)) continue;
       seen.add(k);
-      const nm = info.name ? esc(info.name) + ' ' : '';
       const disc = String(info.disc).replace(/^\$/, '');
-      lines.push(`<div class="bts-edu-hint">${nm}教育價貨號 <b>${esc(info.edu)}</b> 折 $${esc(disc)}</div>`);
+      lines.push(`<div class="bts-edu-hint">教育價貨號 <b>${esc(info.edu)}</b> 折 $${esc(disc)}</div>`);
     }
     return lines.join('');
   };
