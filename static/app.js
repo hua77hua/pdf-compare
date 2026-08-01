@@ -1330,6 +1330,7 @@ async function uploadDoc(cat, file) {
     if (!res.ok) throw new Error(data.error || '上傳失敗');
     if (cat === 'edu' && typeof data.parsed === 'number') {
       toast(`上傳成功！已自動建立 ${data.parsed} 筆查詢資料`, 'success');
+      _btsEduMap = null;   // 教育價清單已更新，讓 BTS 提示重新抓取
       loadEduProducts(document.getElementById('eduQuery').value.trim());
     } else if (cat === 'bts' && typeof data.parsed === 'number') {
       toast(`上傳成功！已自動建立 ${data.parsed} 筆 BTS 查詢資料`, 'success');
@@ -1443,6 +1444,31 @@ async function rebuildEdu() {
 }
 
 // ── BTS 2026 查詢 ───────────────────────────────
+// 教育價對照表：把「教育價貨號」分頁(edu_products)的資料抓來，
+// 以「全額貨號 / 教育價貨號」為鍵，供 BTS 搜尋時比對提示折抵。
+let _btsEduMap = null;
+const _eduKey = s => String(s || '').replace(/[^0-9A-Za-z]/g, '');
+async function ensureBtsEduMap() {
+  if (_btsEduMap) return _btsEduMap;
+  const m = new Map();
+  try {
+    const rows = await (await fetch(`${API}/edu-products`)).json();
+    for (const r of (rows || [])) {
+      const info = {
+        edu:  String(r.code || '').trim(),        // 教育價折抵貨號
+        disc: String(r.discount || '').trim(),    // 折抵金額
+        name: String(r.name || '').trim(),
+      };
+      const full = _eduKey(r.full_code);          // 全額貨號 → BTS 一般會列這個
+      const edu  = _eduKey(r.code);
+      if (full) m.set(full, info);                // 優先用全額貨號比對
+      if (edu && !m.has(edu)) m.set(edu, info);   // 退而求其次：教育價貨號本身
+    }
+  } catch { /* 抓不到就不提示，不影響搜尋 */ }
+  _btsEduMap = m;
+  return m;
+}
+
 async function loadBtsProducts(q = '') {
   const box   = document.getElementById('btsResults');
   const count = document.getElementById('btsCount');
@@ -1470,6 +1496,7 @@ async function loadBtsProducts(q = '') {
 
   try {
     const data = await (await fetch(`${API}/bts-products?q=${encodeURIComponent(q)}`)).json();
+    await ensureBtsEduMap();
     renderBtsProducts(data, q);
   } catch {
     box.innerHTML = `<div class="edu-empty"><div class="edu-empty-ico">⚠️</div>
@@ -1517,6 +1544,24 @@ function renderBtsProducts(data, q) {
 
   const toNum = s => parseInt(String(s || '').replace(/[^0-9]/g, '') || '0', 10);
 
+  // 教育價折抵提示：機種貨號若對應到「教育價貨號」清單，
+  // 就在機種卡最下方以橘色字提示 例：iPad Air 11吋教育貨號 194188 折1700
+  const eduHintLines = devices => {
+    if (!_btsEduMap) return '';
+    const seen = new Set();
+    const lines = [];
+    for (const d of (devices || [])) {
+      const info = _btsEduMap.get(_eduKey(d.code));
+      if (!info || !info.disc || !info.edu) continue;
+      const k = _eduKey(info.edu);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      const nm = info.name || '';
+      lines.push(`<div class="bts-edu-hint">${esc(nm)}教育貨號 <b>${esc(info.edu)}</b> 折${esc(info.disc)}</div>`);
+    }
+    return lines.join('');
+  };
+
   let html = '';
 
   // 每個機種一張卡：分類 + 贈品 + (拆帳合計) + 機種變體(含拆帳後主機價) + 搭售拆帳
@@ -1554,6 +1599,7 @@ function renderBtsProducts(data, q) {
           </table>
         </div>`;
     }
+    html += eduHintLines(g.devices);
     html += `</div>`;
   }
 

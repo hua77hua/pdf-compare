@@ -785,6 +785,9 @@ tr.row-chg td.sc-b-cell { background: rgba(219,39,119,.05); }
 .bts-sub-title { margin: 10px 2px 6px; font-size: 12.5px; font-weight: 700; color: #7c3aed; }
 .bts-cut, .bts-cut-cell .bts-cut { color: #dc2626; font-weight: 800; }
 .bts-cut-cell { white-space: nowrap; font-weight: 800; }
+/* 教育價折抵提示：機種卡底部的橘色一行 */
+.bts-edu-hint { margin: 8px 2px 2px; font-size: 13px; font-weight: 700; color: #ea580c; }
+.bts-edu-hint b { color: #ea580c; font-weight: 800; }
 
 /* Body holds either the PDF viewer or a placeholder */
 .doc-bd { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
