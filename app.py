@@ -755,8 +755,13 @@ def get_doc_file(category):
 # ═══════════════════════════════════════════════════════════════════════════
 #  教育價查詢清單  (品名 / 貨號 / 折抵金額 / 全額貨號)
 # ═══════════════════════════════════════════════════════════════════════════
-# 搜尋別名：打 NEO 也要找得到 PDF 裡寫 MBN 的資料
-EDU_SEARCH_ALIASES = {'NEO': ['MBN']}
+# 搜尋別名：打 NEO / Air / Pro 也要找得到 PDF 裡寫 MBN / MBA / MBP 的資料
+# key 是正規表示式（不分大小寫），命中的部分會被換成 value 另外再搜一次
+EDU_SEARCH_ALIASES = {
+    r'\bneo\b': ['MBN'],
+    r'\b(macbook\s*)?air\b': ['MBA'],
+    r'\b(macbook\s*)?pro\b': ['MBP'],
+}
 
 
 @app.route('/api/edu-products', methods=['GET'])
@@ -768,8 +773,11 @@ def edu_products():
         variants = [q] + [re.sub(k, v, q, flags=re.I)
                           for k, vs in EDU_SEARCH_ALIASES.items()
                           for v in vs if re.search(k, q, re.I)]
-        clause = ' OR '.join(['(name LIKE ? OR code LIKE ? OR full_code LIKE ?)'] * len(variants))
-        params = [f'%{v}%' for v in variants for _ in range(3)]
+        # 同時比對「去掉空白」的版本，讓 MBA 13 / MBA13 都找得到
+        clause = ' OR '.join(['(name LIKE ? OR REPLACE(name, \' \', \'\') LIKE ? '
+                              'OR code LIKE ? OR full_code LIKE ?)'] * len(variants))
+        params = [x for v in variants
+                  for x in (f'%{v}%', f"%{v.replace(' ', '')}%", f'%{v}%', f'%{v}%')]
         rows = conn.execute(
             'SELECT id, name, code, discount, full_code FROM edu_products '
             f'WHERE {clause} ORDER BY name', params
