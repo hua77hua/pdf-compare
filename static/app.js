@@ -1179,6 +1179,24 @@ document.addEventListener('DOMContentLoaded', () => {
     q.addEventListener('click', resetOnTap);
   }
 
+  const cq = document.getElementById('curQuery');
+  if (cq) {
+    cq.addEventListener('input', debounce(() => {
+      document.getElementById('curClear').style.display = cq.value ? 'block' : 'none';
+      loadCurProducts(cq.value.trim());
+    }, 220));
+    const resetCurOnTap = () => {
+      if (cq.value) {
+        cq.value = '';
+        document.getElementById('curClear').style.display = 'none';
+        loadCurProducts('');
+      }
+    };
+    cq.addEventListener('focus', resetCurOnTap);
+    cq.addEventListener('click', resetCurOnTap);
+    loadCurProducts('');
+  }
+
   const bq = document.getElementById('btsQuery');
   if (bq) {
     bq.addEventListener('input', debounce(() => {
@@ -1202,7 +1220,7 @@ function switchView(view) {
     .forEach(b => b.classList.toggle('active', b.dataset.view === view));
   document.querySelectorAll('.view')
     .forEach(s => s.classList.toggle('active', s.id === 'view-' + view));
-  if (view === 'current') { loadDoc('current'); }
+  if (view === 'current') { loadDoc('current'); loadCurProducts(document.getElementById('curQuery').value.trim()); }
   if (view === 'edu') { loadDoc('edu'); loadEduProducts(document.getElementById('eduQuery').value.trim()); }
   if (view === 'sku') { loadDoc('sku'); }
 }
@@ -1331,6 +1349,10 @@ async function uploadDoc(cat, file) {
       toast(`上傳成功！已自動建立 ${data.parsed} 筆查詢資料`, 'success');
       _btsEduMap = null;   // 教育價清單已更新，讓 BTS 提示重新抓取
       loadEduProducts(document.getElementById('eduQuery').value.trim());
+    } else if (cat === 'current' && typeof data.parsed === 'number') {
+      toast(data.parsed ? `上傳成功！已自動建立 ${data.parsed} 筆活動查詢資料`
+                        : '上傳成功！但這份 PDF 解析不到商品表格，查詢清單維持舊資料', data.parsed ? 'success' : 'info');
+      loadCurProducts(document.getElementById('curQuery').value.trim());
     } else if (cat === 'bts' && typeof data.parsed === 'number') {
       toast(`上傳成功！已自動建立 ${data.parsed} 筆 BTS 查詢資料`, 'success');
       loadBtsProducts(document.getElementById('btsQuery').value.trim());
@@ -1654,4 +1676,81 @@ async function rebuildBts() {
     toast('建立失敗：' + e.message, 'error');
   }
   loadBtsProducts('');
+}
+
+
+// ── 目前活動 快速查詢 ───────────────────────────
+// 例：搜尋 iPhone 17 256G → 品名 · 貨號 · 會員價 − 折讓額 = 促銷價 · 活動
+async function loadCurProducts(q = '') {
+  const box   = document.getElementById('curResults');
+  const count = document.getElementById('curCount');
+  if (!box) return;
+  try {
+    const data = await (await fetch(`${API}/current-products?q=${encodeURIComponent(q)}`)).json();
+    if (!data.total) {
+      count.textContent = '尚無資料';
+      box.innerHTML = `<div class="edu-empty"><div class="edu-empty-ico">📢</div>
+        <div class="edu-empty-title">目前沒有活動查詢資料</div>
+        <div class="edu-empty-desc">已上傳 PDF 的話，點下方按鈕用它建立查詢清單；<br>或在下方上傳新的活動 PDF（會自動建立）</div>
+        <button class="doc-drop-btn" onclick="rebuildCur()">🔄 從目前 PDF 建立清單</button></div>`;
+      return;
+    }
+    if (!q) { count.textContent = '輸入品名、規格或貨號開始查詢'; box.innerHTML = ''; return; }
+    renderCurProducts(data.rows, q);
+  } catch {
+    count.textContent = '載入失敗';
+    box.innerHTML = '';
+  }
+}
+
+function renderCurProducts(rows, q) {
+  const box   = document.getElementById('curResults');
+  const count = document.getElementById('curCount');
+  if (!rows.length) {
+    count.textContent = '找不到符合的活動';
+    box.innerHTML = `<div class="edu-empty"><div class="edu-empty-ico">🔍</div>
+      <div class="edu-empty-title">找不到「${esc(q)}」</div>
+      <div class="edu-empty-desc">換個關鍵字試試，例如只打型號或容量</div>
+      <button class="edu-reset-btn" onclick="clearCurQuery()">🔄 重新查詢</button></div>`;
+    return;
+  }
+  count.textContent = `找到 ${rows.length} 筆`;
+  const num = v => /^-?[\d,]+$/.test(v) ? Number(v.replace(/,/g, '')) : null;
+  const money = v => { const n = num(v); return n === null ? esc(v) : '$' + n.toLocaleString(); };
+
+  box.innerHTML = rows.map(r => {
+    let price;
+    if (r.discount && r.promo_price && num(r.member_price) !== null) {
+      price = `${money(r.member_price)} − ${money(r.discount)} = <b class="cur-promo">${money(r.promo_price)}</b>`;
+    } else {
+      price = `<b class="cur-promo">${money(r.member_price)}</b>`;
+      if (r.orig_price && r.orig_price !== r.member_price) {
+        price += ` <span class="cur-orig">（原 ${money(r.orig_price)}）</span>`;
+      }
+    }
+    return `<div class="cur-card">
+      <div class="cur-name">${esc(r.name)}</div>
+      <div class="cur-meta">貨號 <b>${esc(r.code)}</b>${r.grp ? ' · ' + esc(r.grp) : ''}</div>
+      <div class="cur-price">${price}</div>
+      ${r.activity ? `<div class="cur-act">🎁 ${esc(r.activity)}</div>` : ''}
+    </div>`;
+  }).join('') + `<div class="edu-reset-row"><button class="edu-reset-btn" onclick="clearCurQuery()">🔄 重新查詢</button></div>`;
+}
+
+function clearCurQuery() {
+  const q = document.getElementById('curQuery');
+  q.value = '';
+  document.getElementById('curClear').style.display = 'none';
+  loadCurProducts('');
+  q.focus();
+}
+
+async function rebuildCur() {
+  try {
+    const res = await fetch(`${API}/current-products/rebuild`, { method: 'POST' });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || '建立失敗');
+    toast(`已建立 ${d.count} 筆活動查詢資料`, 'success');
+  } catch (e) { toast(e.message, 'error'); }
+  loadCurProducts('');
 }

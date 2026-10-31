@@ -44,6 +44,26 @@
 
   <!-- ══ View: 目前活動 ══ -->
   <section id="view-current" class="view active">
+    <!-- 目前活動快速查詢 -->
+    <div class="block edu-block">
+      <div class="blk-hd">
+        <span class="blk-ico">🔎</span>
+        <div class="blk-hd-text">
+          <div class="blk-title">目前活動查詢</div>
+          <div class="blk-sub" id="curCount">輸入品名或規格即可查詢</div>
+        </div>
+      </div>
+      <div class="blk-bd edu-search-bd">
+        <div class="edu-searchbar">
+          <span class="edu-search-ico">🔍</span>
+          <input type="text" id="curQuery" class="edu-search-inp"
+                 placeholder="搜尋品名、規格或貨號…（例：iPhone 17 256G、MacBook Air）">
+          <button class="edu-clear" id="curClear" onclick="clearCurQuery()" style="display:none">✕</button>
+        </div>
+        <div id="curResults" class="edu-results"></div>
+      </div>
+    </div>
+
     <div class="block doc-block doc-current">
       <div class="blk-hd">
         <span class="blk-ico">📢</span>

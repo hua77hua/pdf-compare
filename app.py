@@ -71,6 +71,21 @@ def init_db():
             kind         TEXT DEFAULT 'device'
         )
     ''')
+    # 目前活動查詢清單：分類 / 貨號 / 品名 / 型號 / 原會員價 / 會員價 / 折讓額 / 促銷價 / 活動
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS cur_products (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            grp          TEXT DEFAULT '',
+            code         TEXT DEFAULT '',
+            name         TEXT DEFAULT '',
+            model        TEXT DEFAULT '',
+            orig_price   TEXT DEFAULT '',
+            member_price TEXT DEFAULT '',
+            discount     TEXT DEFAULT '',
+            promo_price  TEXT DEFAULT '',
+            activity     TEXT DEFAULT ''
+        )
+    ''')
     # Migrate older bts_products tables that predate the `kind` column
     cols = [r[1] for r in conn.execute("PRAGMA table_info(bts_products)")]
     if 'kind' not in cols:
@@ -223,6 +238,66 @@ def extract_bts_products(filepath):
 
                     out.append((row_grp, code, name, g('model'),
                                 g('member'), g('disc'), g('promo'), row_act, kind))
+    return out
+
+
+def extract_current_products(filepath):
+    """Parse the 目前活動 PDF into rows of
+    (分類, 貨號, 品名, 型號, 原會員價, 會員價, 折讓額, 促銷價, 活動).
+
+    Columns are located from the header row (貨號/品名/型號/會員價/折讓/促銷/活動), so
+    layouts that differ week to week still work. 會員價 = the last column whose header
+    contains 會員 (e.g. 新會員價); an 原…會員價 column is kept as 原會員價.
+    分類 (first column) and 活動 are merged cells: pdfplumber gives None for a cell
+    merged into the one above (→ inherit the group's value) but '' for a real blank."""
+    out = []
+    colmap = None
+    grp = grp_act = ''
+    with pdfplumber.open(filepath) as pdf:
+        for pg in pdf.pages:
+            for t in (pg.extract_tables() or []):
+                for r in t:
+                    cells = [_clean_cell(c) for c in r]
+                    if '貨號' in cells and '品名' in cells:
+                        def idx(pred):
+                            for i, c in enumerate(cells):
+                                if pred(c):
+                                    return i
+                            return -1
+                        mem = [i for i, c in enumerate(cells) if '會員' in c]
+                        orig = [i for i in mem if '原' in cells[i]]
+                        new = [i for i in mem if i not in orig]
+                        colmap = dict(
+                            code=idx(lambda c: c == '貨號'),
+                            name=idx(lambda c: c == '品名'),
+                            model=idx(lambda c: '型號' in c),
+                            orig=orig[0] if orig else -1,
+                            member=(new or mem or [-1])[-1],
+                            disc=idx(lambda c: '折讓' in c),
+                            promo=idx(lambda c: '促銷' in c),
+                            act=idx(lambda c: c == '活動'),
+                        )
+                        continue
+                    if colmap is None:
+                        continue
+
+                    def g(k):
+                        i = colmap.get(k, -1)
+                        return cells[i] if 0 <= i < len(cells) else ''
+
+                    code = g('code')
+                    if not re.fullmatch(r'\d{4,7}', code):
+                        continue
+                    ai = colmap['act']
+                    raw_act = r[ai] if 0 <= ai < len(r) else None
+                    act = re.sub(r'\s*\n\s*', '', str(raw_act or '')).strip()
+                    raw_first = r[0] if colmap['code'] != 0 else None
+                    if raw_first is not None:          # new group starts ('' = ungrouped row)
+                        grp, grp_act = cells[0], act
+                    elif raw_act is None:              # merged into the cell above
+                        act = grp_act
+                    out.append((grp, code, g('name'), g('model'), g('orig'),
+                                g('member'), g('disc'), g('promo'), act))
     return out
 
 
@@ -712,6 +787,16 @@ def upload_doc(category):
             conn.close()
         parsed = len(rows)
 
+    # 目前活動 PDF：自動解析表格，建立可搜尋清單（解析不到就保留舊清單）
+    elif category == 'current':
+        try:
+            rows = extract_current_products(filepath)
+        except Exception:
+            rows = []
+        if rows:
+            _save_current_products(rows)
+        parsed = len(rows)
+
     # BTS 操盤 PDF：自動解析表格，更新可搜尋清單（換新檔即覆蓋舊資料）
     elif category == 'bts':
         try:
@@ -832,6 +917,68 @@ def edu_products_rebuild():
     )
     conn.commit()
     conn.close()
+    return jsonify({'count': len(rows), 'message': f'已建立 {len(rows)} 筆'})
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  目前活動查詢清單  (打 iPhone 17 256G → 會員價 − 折讓額 = 促銷價 + 活動)
+#  Token search：每個空白分隔的詞都要出現在該列（忽略空白/連字號、大小寫），
+#  詞可用 EDU_SEARCH_ALIASES 展開（Neo→MBN、Air→MBA、Pro→MBP）。
+# ═══════════════════════════════════════════════════════════════════════════
+def _save_current_products(rows):
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute('DELETE FROM cur_products')
+    conn.executemany(
+        'INSERT INTO cur_products '
+        '(grp, code, name, model, orig_price, member_price, discount, promo_price, activity) '
+        'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', rows
+    )
+    conn.commit()
+    conn.close()
+
+
+def _alias_variants(token):
+    out = [token]
+    for k, vs in EDU_SEARCH_ALIASES.items():
+        if re.search(k, token, re.I):
+            out += [re.sub(k, v, token, flags=re.I).lower() for v in vs]
+    return out
+
+
+@app.route('/api/current-products', methods=['GET'])
+def current_products():
+    q = request.args.get('q', '').strip()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    rows = [dict(r) for r in conn.execute(
+        'SELECT grp, code, name, model, orig_price, member_price, discount, promo_price, activity '
+        'FROM cur_products ORDER BY id').fetchall()]
+    conn.close()
+    tokens = [_alias_variants(_bts_norm(t)) for t in q.split() if t.strip()]
+    out, seen = [], set()
+    for d in rows:
+        blob = _bts_norm(' '.join([d['grp'], d['name'], d['model'], d['code']]))
+        if all(any(v in blob for v in vs) for vs in tokens) and d['code'] not in seen:
+            seen.add(d['code'])
+            out.append(d)
+    return jsonify({'total': len(rows), 'rows': out if tokens else []})
+
+
+@app.route('/api/current-products/rebuild', methods=['POST'])
+def current_products_rebuild():
+    """用伺服器上目前的活動 PDF 重新建立查詢清單（不需重新上傳）。"""
+    conn = sqlite3.connect(DB_PATH)
+    row = conn.execute("SELECT stored_name FROM single_docs WHERE category = 'current'").fetchone()
+    conn.close()
+    if not row or not os.path.exists(os.path.join(UPLOAD_FOLDER, row[0])):
+        return jsonify({'error': '尚未上傳目前活動 PDF'}), 404
+    try:
+        rows = extract_current_products(os.path.join(UPLOAD_FOLDER, row[0]))
+    except Exception as e:
+        return jsonify({'error': f'解析失敗: {e}'}), 500
+    if not rows:
+        return jsonify({'error': '這份 PDF 解析不到商品表格'}), 422
+    _save_current_products(rows)
     return jsonify({'count': len(rows), 'message': f'已建立 {len(rows)} 筆'})
 
 
