@@ -755,17 +755,24 @@ def get_doc_file(category):
 # ═══════════════════════════════════════════════════════════════════════════
 #  教育價查詢清單  (品名 / 貨號 / 折抵金額 / 全額貨號)
 # ═══════════════════════════════════════════════════════════════════════════
+# 搜尋別名：打 NEO 也要找得到 PDF 裡寫 MBN 的資料
+EDU_SEARCH_ALIASES = {'NEO': ['MBN']}
+
+
 @app.route('/api/edu-products', methods=['GET'])
 def edu_products():
     q = request.args.get('q', '').strip()
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     if q:
-        like = f'%{q}%'
+        variants = [q] + [re.sub(k, v, q, flags=re.I)
+                          for k, vs in EDU_SEARCH_ALIASES.items()
+                          for v in vs if re.search(k, q, re.I)]
+        clause = ' OR '.join(['(name LIKE ? OR code LIKE ? OR full_code LIKE ?)'] * len(variants))
+        params = [f'%{v}%' for v in variants for _ in range(3)]
         rows = conn.execute(
             'SELECT id, name, code, discount, full_code FROM edu_products '
-            'WHERE name LIKE ? OR code LIKE ? OR full_code LIKE ? ORDER BY name',
-            (like, like, like)
+            f'WHERE {clause} ORDER BY name', params
         ).fetchall()
     else:
         rows = conn.execute(
