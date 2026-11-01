@@ -1390,6 +1390,8 @@ async function uploadDoc(cat, file) {
 async function loadEduProducts(q = '') {
   const box   = document.getElementById('eduResults');
   const count = document.getElementById('eduCount');
+  document.querySelectorAll('#eduChips .cur-chip').forEach(b =>
+    b.classList.toggle('active', !!q && b.textContent.trim().endsWith(q)));
 
   // 還沒搜尋：只留搜尋框，下面不顯示任何清單
   if (!q) {
@@ -1461,6 +1463,13 @@ function renderEduProducts(rows, q) {
     </div>
     ${rows.length > CAP ? `<div class="edu-note">符合 ${rows.length} 筆，顯示前 ${CAP} 筆，請縮小關鍵字</div>` : ''}
     <div class="edu-reset-row"><button class="edu-reset-btn" onclick="clearEduQuery()">🔄 重新查詢</button></div>`;
+}
+
+// 快速分類：點選項直接帶入關鍵字查詢
+function eduQuick(term) {
+  document.getElementById('eduQuery').value = term;
+  document.getElementById('eduClear').style.display = 'block';
+  loadEduProducts(term);
 }
 
 function clearEduQuery() {

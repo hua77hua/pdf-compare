@@ -858,6 +858,9 @@ def edu_products():
         variants = [q] + [re.sub(k, v, q, flags=re.I)
                           for k, vs in EDU_SEARCH_ALIASES.items()
                           for v in vs if re.search(k, q, re.I)]
+        m = re.fullmatch(r'mb([pa])(\d+)', q.replace(' ', ''), re.I)   # MBP14 → MacBook Pro 14
+        if m:
+            variants.append(('MacBookPro' if m.group(1).lower() == 'p' else 'MacBookAir') + m.group(2))
         # 同時比對「去掉空白」的版本，讓 MBA 13 / MBA13 都找得到
         clause = ' OR '.join(['(name LIKE ? OR REPLACE(name, \' \', \'\') LIKE ? '
                               'OR code LIKE ? OR full_code LIKE ?)'] * len(variants))
