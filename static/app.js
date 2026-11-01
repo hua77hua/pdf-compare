@@ -1062,6 +1062,7 @@ async function loadRecords(search = '') {
     allRecords = await res.json();
     renderHistory();
     document.getElementById('totalRec').textContent = allRecords.length;
+    const hs = document.getElementById('hsHist'); if (hs) hs.textContent = allRecords.length + ' 筆';
   } catch { toast('載入記錄失敗', 'error'); }
 }
 
@@ -1160,7 +1161,7 @@ function toast(msg, type = 'info') {
 // ═══════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
   ['edu', 'sku', 'current'].forEach(setupDoc);
-  loadDoc('current');   // 目前活動是預設首頁，開頁即載入
+  loadHome();   // 首頁是預設頁，開頁即載入
   const q = document.getElementById('eduQuery');
   if (q) {
     q.addEventListener('input', debounce(() => {
@@ -1220,9 +1221,29 @@ function switchView(view) {
     .forEach(b => b.classList.toggle('active', b.dataset.view === view));
   document.querySelectorAll('.view')
     .forEach(s => s.classList.toggle('active', s.id === 'view-' + view));
+  if (view === 'home') loadHome();
   if (view === 'current') { loadDoc('current'); loadCurProducts(document.getElementById('curQuery').value.trim()); }
   if (view === 'edu') { loadDoc('edu'); loadEduProducts(document.getElementById('eduQuery').value.trim()); }
   if (view === 'sku') { loadDoc('sku'); }
+}
+
+async function loadHome() {
+  const cats = [['current', '目前活動', 'hsCurrent'], ['edu', '教育價貨號', 'hsEdu'], ['sku', '貨號表', 'hsSku']];
+  const metas = await Promise.all(cats.map(([c]) =>
+    fetch(`${API}/docs/${c}`).then(r => r.json()).catch(() => null)));
+  const rows = [];
+  cats.forEach(([c, label, id], i) => {
+    const m = metas[i], el = document.getElementById(id);
+    if (m && m.exists) {
+      el.textContent = '已上傳';
+      rows.push(`<a class="home-latest-row" onclick="switchView('${c}')"><span class="hl-tag">${label}</span>` +
+        `<span class="hl-name">${esc(m.name)}</span><span class="hl-date">${fmtDate(m.upload_time)}</span></a>`);
+    } else {
+      el.textContent = '未上傳';
+    }
+  });
+  document.getElementById('homeLatest').innerHTML = rows.join('') || '尚未上傳任何檔案';
+  document.getElementById('hsHist').textContent = allRecords.length + ' 筆';
 }
 
 function setupDoc(cat) {

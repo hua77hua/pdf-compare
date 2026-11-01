@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>TK活動系統</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="theme-modern.css">
+  <link rel="stylesheet" href="theme-home.css">
 </head>
 <body>
 <div class="app">
@@ -28,7 +30,10 @@
 
   <!-- ══ Main Tabs ══ -->
   <nav class="main-tabs">
-    <button class="mtab active" data-view="current" onclick="switchView('current')">
+    <button class="mtab active" data-view="home" onclick="switchView('home')">
+      <span class="mtab-ico">🏠</span><span class="mtab-label">首頁</span>
+    </button>
+    <button class="mtab" data-view="current" onclick="switchView('current')">
       <span class="mtab-ico">📢</span><span class="mtab-label">目前活動</span>
     </button>
     <button class="mtab" data-view="edu" onclick="switchView('edu')">
@@ -42,8 +47,40 @@
     </button>
   </nav>
 
+  <!-- ══ View: 首頁 ══ -->
+  <section id="view-home" class="view active">
+    <div class="home-greet">
+      <div class="home-hi">Hi, 歡迎使用 TK 活動系統 👋</div>
+      <div class="home-hi-sub">活動查詢 · 教育優惠 · 價格資訊 · 資料統整 · 一站完成</div>
+    </div>
+
+    <div class="home-tiles">
+      <button class="home-tile t-orange" onclick="switchView('current')"><span class="ht-ico">📢</span><span class="ht-label">目前活動查詢</span></button>
+      <button class="home-tile t-blue" onclick="switchView('edu')"><span class="ht-ico">🎓</span><span class="ht-label">教育優惠價格</span></button>
+      <button class="home-tile t-teal" onclick="switchView('sku')"><span class="ht-ico">🏷️</span><span class="ht-label">貨號表</span></button>
+      <button class="home-tile t-purple" onclick="switchView('compare')"><span class="ht-ico">📊</span><span class="ht-label">差異比較</span></button>
+    </div>
+
+    <div class="home-row">
+      <div class="home-card home-latest">
+        <div class="home-card-title">📌 最新上傳</div>
+        <div id="homeLatest" class="home-latest-list">載入中…</div>
+      </div>
+      <div class="home-card home-stats">
+        <div class="home-card-title">📈 快速統計</div>
+        <div class="home-stat-grid">
+          <div class="hs hs-pink"><div class="hs-l">目前活動 PDF</div><div class="hs-n" id="hsCurrent">–</div></div>
+          <div class="hs hs-blue"><div class="hs-l">教育價 PDF</div><div class="hs-n" id="hsEdu">–</div></div>
+          <div class="hs hs-violet"><div class="hs-l">貨號表 PDF</div><div class="hs-n" id="hsSku">–</div></div>
+          <div class="hs hs-mint"><div class="hs-l">歷史記錄</div><div class="hs-n" id="hsHist">–</div></div>
+        </div>
+        <button class="home-link" onclick="switchView('compare')">歷史記錄查詢 ›</button>
+      </div>
+    </div>
+  </section>
+
   <!-- ══ View: 目前活動 ══ -->
-  <section id="view-current" class="view active">
+  <section id="view-current" class="view">
     <!-- 目前活動快速查詢 -->
     <div class="block edu-block">
       <div class="blk-hd">

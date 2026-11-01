@@ -1,0 +1,179 @@
+/* ═══════════════════════════════════════════════
+   MODERN THEME — Liquid Glass（液態玻璃）
+   珍珠白底 + 柔和彩色光暈 · 半透明毛玻璃面板 · 亮面方圓形圖塊 · 立體白色膠囊
+   載入在 style.css 之後，只覆蓋視覺；要還原就移除 index.html 裡這行 <link>
+═══════════════════════════════════════════════ */
+:root {
+  --ink:      #3a2a4d;
+  --ink-soft: #8a7a9b;
+  --glass:    rgba(255,255,255,.52);
+  --glass-hi: rgba(255,255,255,.78);
+  --edge:     rgba(255,255,255,.85);
+  --line:     rgba(190,120,190,.14);
+  /* 玻璃：外陰影 + 上緣高光 + 下緣反光 */
+  --glass-fx: 0 18px 50px rgba(190,110,170,.14), 0 2px 6px rgba(190,110,170,.06),
+              inset 0 1.5px 0 rgba(255,255,255,.95), inset 0 -1px 0 rgba(255,255,255,.35),
+              inset 1px 0 0 rgba(255,255,255,.5), inset -1px 0 0 rgba(255,255,255,.35);
+  --blue:   linear-gradient(145deg, #ffb3e0 0%, #d9a6ff 55%, #a9b8ff 100%);
+  --orange: linear-gradient(145deg, #ffe08a 0%, #ffb88a 55%, #ff9fb5 100%);
+  --mint:   linear-gradient(145deg, #c4f5dc 0%, #8fe3c8 55%, #8fd8f2 100%);
+  --violet: linear-gradient(145deg, #e3c9ff 0%, #c2a6ff 55%, #a0b4ff 100%);
+}
+
+body {
+  color: var(--ink);
+  background: #fff4f8;
+  background-image:
+    radial-gradient(520px 420px at 6% 8%,   rgba(255,200,225,.75) 0%, transparent 70%),
+    radial-gradient(560px 460px at 94% 6%,  rgba(205,190,255,.70) 0%, transparent 70%),
+    radial-gradient(600px 480px at 8% 96%,  rgba(190,240,220,.70) 0%, transparent 70%),
+    radial-gradient(620px 500px at 96% 94%, rgba(255,225,170,.65) 0%, transparent 70%);
+  background-attachment: fixed;
+}
+
+/* ── Header ───────────────────────────────────── */
+.app-hd {
+  background: rgba(255,255,255,.38);
+  backdrop-filter: blur(28px) saturate(1.8);
+  border-bottom: 1px solid var(--edge);
+  box-shadow: inset 0 -1px 0 rgba(255,255,255,.4);
+}
+.hd-logo {
+  background: var(--blue); border-radius: 13px;
+  box-shadow: 0 8px 18px rgba(210,120,220,.35), inset 0 1.5px 0 rgba(255,255,255,.55), inset 0 -2px 4px rgba(170,60,170,.25);
+}
+.hd-title { font-size: 17px; font-weight: 800; letter-spacing: -.3px; background: none; -webkit-text-fill-color: var(--ink); color: var(--ink); }
+.hd-sub { color: var(--ink-soft); letter-spacing: 1.4px; text-transform: uppercase; font-size: 9px; }
+.stat-chip { background: var(--glass-hi); border: 1px solid var(--edge); box-shadow: var(--glass-fx); }
+.stat-n { color: var(--ink); } .stat-l { color: var(--ink-soft); }
+
+/* ── Main tabs → 玻璃膠囊列，選中是立體白色膠囊 ── */
+.main-tabs {
+  gap: 4px; padding: 6px; margin: 16px auto 2px 16px;
+  width: fit-content; max-width: calc(100% - 32px); overflow-x: auto;
+  background: var(--glass); backdrop-filter: blur(28px) saturate(1.8);
+  border: 1px solid var(--edge); border-radius: 999px; box-shadow: var(--glass-fx);
+}
+.main-tabs::-webkit-scrollbar { display: none; }
+.mtab { border: none; border-radius: 999px; padding: 9px 18px; background: transparent; color: var(--ink-soft); }
+.mtab:hover { background: rgba(255,255,255,.55); color: var(--ink); }
+.mtab.active {
+  background: #fff; color: var(--ink);
+  box-shadow: 0 6px 16px rgba(190,110,170,.18), 0 1px 2px rgba(190,110,170,.10), inset 0 -2px 4px rgba(200,150,210,.12);
+}
+
+/* ── Blocks → 液態玻璃面板 ─────────────────────── */
+.block {
+  background: var(--glass);
+  backdrop-filter: blur(30px) saturate(1.9);
+  border: 1px solid var(--edge);
+  border-radius: 38px;
+  box-shadow: var(--glass-fx);
+}
+.block:hover { box-shadow: 0 24px 60px rgba(190,110,170,.18), 0 2px 6px rgba(190,110,170,.06),
+               inset 0 1.5px 0 rgba(255,255,255,.95), inset 0 -1px 0 rgba(255,255,255,.35); }
+.blk-upload, .blk-compare, .blk-history, .blk-suggest,
+.doc-edu, .doc-sku, .doc-current, .doc-bts, .edu-block { border-top: 1px solid var(--edge); }
+
+.blk-hd,
+.blk-upload .blk-hd, .blk-compare .blk-hd, .blk-history .blk-hd, .blk-suggest .blk-hd,
+.doc-edu .blk-hd, .doc-sku .blk-hd, .doc-current .blk-hd, .doc-bts .blk-hd, .edu-block .blk-hd {
+  background: transparent; border-bottom: 1px solid var(--line);
+  color: var(--ink); padding: 20px 26px 16px;
+}
+.blk-title { font-size: 18px; font-weight: 800; letter-spacing: -.4px; color: var(--ink); }
+.blk-sub   { color: var(--ink-soft); opacity: 1; font-size: 12px; }
+
+/* 圖示 → 亮面方圓形圖塊（每區塊一種色） */
+.blk-ico {
+  width: 48px; height: 48px; border-radius: 18px;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 20px;
+  background: var(--blue);
+  box-shadow: 0 10px 20px rgba(210,120,220,.28), inset 0 1.5px 0 rgba(255,255,255,.65), inset 0 -3px 6px rgba(170,60,170,.22);
+}
+.doc-current .blk-ico { background: var(--orange); box-shadow: 0 10px 20px rgba(255,150,140,.30), inset 0 1.5px 0 rgba(255,255,255,.65), inset 0 -3px 6px rgba(200,90,90,.22); }
+.doc-edu .blk-ico, .edu-block .blk-ico { background: var(--blue); }
+.doc-sku .blk-ico { background: var(--mint); box-shadow: 0 10px 20px rgba(90,200,180,.28), inset 0 1.5px 0 rgba(255,255,255,.65), inset 0 -3px 6px rgba(40,140,150,.22); }
+#view-current > .edu-block .blk-ico { background: var(--violet); box-shadow: 0 10px 20px rgba(180,140,255,.30), inset 0 1.5px 0 rgba(255,255,255,.65), inset 0 -3px 6px rgba(110,80,200,.22); }
+
+/* ── Buttons：亮面膠囊 ────────────────────────── */
+.doc-up-btn,
+.doc-edu .doc-up-btn, .doc-sku .doc-up-btn, .doc-current .doc-up-btn, .doc-bts .doc-up-btn,
+.doc-drop-btn {
+  background: var(--blue); color: #5a2a63; border-radius: 999px; padding: 9px 20px;
+  box-shadow: 0 10px 20px rgba(210,120,220,.32), inset 0 1.5px 0 rgba(255,255,255,.55), inset 0 -2px 5px rgba(170,60,170,.25);
+}
+.doc-up-btn:hover, .doc-drop-btn:hover { transform: translateY(-1px); }
+.pdf-btn:active, .pdf-btn:hover { border-color: #d46ad0; color: #d46ad0; }
+.edu-reset-btn {
+  background: #fff; color: var(--ink); border: none; border-radius: 999px;
+  box-shadow: 0 6px 14px rgba(190,110,170,.14), inset 0 -2px 4px rgba(200,150,210,.12);
+}
+.edu-reset-btn:hover { background: #fff; transform: translateY(-1px); }
+.doc-drop { background: rgba(255,255,255,.35); border-color: rgba(210,130,200,.35); border-radius: 26px; }
+.doc-drop:hover { border-color: #d46ad0; background: rgba(255,255,255,.55); }
+
+/* ── Search → 凹陷玻璃膠囊 ────────────────────── */
+.edu-searchbar {
+  background: rgba(255,255,255,.55); border: 1px solid var(--edge);
+  border-radius: 999px; padding: 14px 22px;
+  box-shadow: inset 0 2px 6px rgba(190,110,170,.10), 0 1px 0 rgba(255,255,255,.8);
+}
+.edu-searchbar:focus-within {
+  background: rgba(255,255,255,.85); border-color: #e29ad8;
+  box-shadow: 0 0 0 4px rgba(210,120,220,.16), 0 8px 22px rgba(210,120,220,.14), inset 0 1px 3px rgba(190,110,170,.06);
+}
+.edu-search-inp { color: var(--ink); }
+.edu-note-bar { background: rgba(255,255,255,.5); border: 1px solid var(--edge); border-radius: 20px; box-shadow: inset 0 1px 0 rgba(255,255,255,.9); }
+.edu-note-tag { color: #8a3b3b; background: var(--orange); box-shadow: inset 0 1px 0 rgba(255,255,255,.5); }
+.edu-note-item { color: var(--ink-soft); }
+.edu-note-item b { color: var(--ink); }
+
+/* ── 查詢結果：玻璃圖塊卡，促銷價做成白色數字膠囊 ─ */
+.cur-card {
+  position: relative; overflow: hidden;
+  background: var(--glass-hi);
+  border: 1px solid var(--edge); border-radius: 30px;
+  padding: 16px 20px 16px 76px;
+  box-shadow: 0 8px 24px rgba(190,110,170,.09), inset 0 1.5px 0 rgba(255,255,255,.95);
+  transition: transform .15s, box-shadow .15s;
+}
+.cur-card::before {            /* 左側亮面彩色方圓形圖塊 */
+  content: ''; position: absolute; left: 18px; top: 18px;
+  width: 44px; height: 44px; border-radius: 16px;
+  background: var(--orange);
+  box-shadow: 0 8px 16px rgba(255,150,140,.28), inset 0 1.5px 0 rgba(255,255,255,.65), inset 0 -3px 6px rgba(200,90,90,.2);
+}
+.cur-card:nth-child(3n+2)::before { background: var(--blue);  box-shadow: 0 8px 16px rgba(210,120,220,.28), inset 0 1.5px 0 rgba(255,255,255,.65), inset 0 -3px 6px rgba(170,60,170,.22); }
+.cur-card:nth-child(3n+3)::before { background: var(--mint);  box-shadow: 0 8px 16px rgba(90,200,180,.26), inset 0 1.5px 0 rgba(255,255,255,.65), inset 0 -3px 6px rgba(40,140,150,.2); }
+.cur-card:hover { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(190,110,170,.16), inset 0 1.5px 0 rgba(255,255,255,.95); }
+.cur-name { color: var(--ink); font-size: 15px; font-weight: 800; }
+.cur-meta { color: var(--ink-soft); }
+.cur-meta b { color: var(--ink); font-family: 'SF Mono', ui-monospace, monospace; }
+.cur-price { font-size: 14px; color: var(--ink-soft); margin-top: 8px; }
+.cur-promo {
+  display: inline-block; color: var(--ink); font-size: 20px; font-weight: 800; letter-spacing: -.4px;
+  background: #fff; border-radius: 14px; padding: 2px 12px; margin-left: 2px;
+  box-shadow: 0 6px 14px rgba(190,110,170,.14), inset 0 -2px 4px rgba(200,150,210,.12);
+}
+.cur-orig { color: var(--ink-soft); }
+.cur-act {
+  background: var(--orange); color: #8a3b3b; border: none; font-weight: 800;
+  box-shadow: 0 6px 14px rgba(255,150,140,.28), inset 0 1.5px 0 rgba(255,255,255,.5);
+}
+table.edu-tbl th { background: rgba(255,255,255,.55); color: var(--ink-soft); }
+.edu-tbl-wrap { border-color: var(--edge); border-radius: 20px; background: rgba(255,255,255,.5); }
+
+/* ── Toast ────────────────────────────────────── */
+.toast { border-radius: 999px; backdrop-filter: blur(14px); }
+.toast.info { background: var(--blue); }
+
+/* ── 手機 ─────────────────────────────────────── */
+@media (max-width: 640px) {
+  .main-tabs { margin: 10px 10px 0; width: auto; }
+  .mtab { padding: 8px 14px; }
+  .cur-card { padding-left: 68px; }
+}
+
+/* 目前活動頁最上方的查詢卡：和下方 PDF 卡對齊 */
+#view-current > .edu-block { margin: 12px 12px 0; }
