@@ -9,6 +9,14 @@
   <link rel="stylesheet" href="theme-home.css">
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <linearGradient id="gW" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#e3e8f7"/></linearGradient>
+  <linearGradient id="gO" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff9a6a"/><stop offset="1" stop-color="#f0587a"/></linearGradient>
+  <linearGradient id="gB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8fc2ff"/><stop offset="1" stop-color="#4f7cf0"/></linearGradient>
+  <linearGradient id="gB2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6ea5fb"/><stop offset="1" stop-color="#3f68e0"/></linearGradient>
+  <linearGradient id="gT" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7fe0d2"/><stop offset="1" stop-color="#3fb7c9"/></linearGradient>
+  <linearGradient id="gP" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffb3d1"/><stop offset="1" stop-color="#ee6a9d"/></linearGradient>
+</defs></svg>
 <div class="app">
 
   <!-- ══ Header ══ -->
@@ -58,11 +66,11 @@
     </div>
 
     <div class="home-tiles">
-      <button class="home-tile t-orange" onclick="switchView('current')"><span class="ht-ico">📢</span><span class="ht-label">目前活動查詢</span></button>
-      <button class="home-tile t-blue" onclick="switchView('edu')"><span class="ht-ico">🎓</span><span class="ht-label">教育優惠價格</span></button>
-      <button class="home-tile t-teal" onclick="switchView('sku')"><span class="ht-ico">🏷️</span><span class="ht-label">貨號表</span></button>
-      <button class="home-tile t-pink" onclick="switchView('warranty')"><span class="ht-ico">🛡️</span><span class="ht-label">延長保固</span></button>
-      <button class="home-tile t-purple" onclick="switchView('compare')"><span class="ht-ico">📊</span><span class="ht-label">活動比較</span></button>
+      <button class="home-tile t-orange" onclick="switchView('current')"><span class="ht-ico"><svg class="ht-svg" viewBox="0 0 64 64"><rect x="17" y="36" width="10" height="17" rx="5" transform="rotate(-14 22 44)" fill="#ffd47a"/><path d="M11 25 L40 11 Q46 9 46 16 V44 Q46 51 40 48 L11 37 Q7 35.5 7 31 Q7 26.5 11 25Z" fill="url(#gW)"/><ellipse cx="45" cy="30" rx="8" ry="19" fill="url(#gO)"/><ellipse cx="46" cy="30" rx="4.5" ry="13" fill="#fff" opacity=".85"/></svg></span><span class="ht-label">目前活動查詢</span></button>
+      <button class="home-tile t-blue" onclick="switchView('edu')"><span class="ht-ico"><svg class="ht-svg" viewBox="0 0 64 64"><path d="M16 31 V43 Q32 53 48 43 V31 L32 38Z" fill="url(#gB2)"/><path d="M32 10 L60 23 L32 36 L4 23Z" fill="url(#gB)"/><path d="M32 10 L60 23 L32 36Z" fill="#fff" opacity=".18"/><path d="M54 25 V41" stroke="#cfe6ff" stroke-width="3" stroke-linecap="round"/><circle cx="54" cy="44" r="3.5" fill="#cfe6ff"/></svg></span><span class="ht-label">教育優惠價格</span></button>
+      <button class="home-tile t-teal" onclick="switchView('sku')"><span class="ht-ico"><svg class="ht-svg" viewBox="0 0 64 64"><path d="M8 13 Q8 8 13 8 H33 Q37 8 40 11 L56 27 Q60 31 56 35 L35 56 Q31 60 27 56 L11 40 Q8 37 8 33Z" fill="url(#gW)"/><circle cx="20" cy="20" r="5" fill="url(#gT)"/><path d="M24 40 L40 24" stroke="#c7d6ea" stroke-width="3" stroke-linecap="round"/></svg></span><span class="ht-label">貨號表</span></button>
+      <button class="home-tile t-pink" onclick="switchView('warranty')"><span class="ht-ico"><svg class="ht-svg" viewBox="0 0 64 64"><path d="M32 5 L54 13 V32 Q54 48 32 59 Q10 48 10 32 V13Z" fill="url(#gW)"/><path d="M32 12 L47 18 V32 Q47 43 32 51Z" fill="url(#gP)"/><path d="M32 12 L17 18 V32 Q17 43 32 51Z" fill="#fff" opacity=".6"/></svg></span><span class="ht-label">延長保固</span></button>
+      <button class="home-tile t-purple" onclick="switchView('compare')"><span class="ht-ico"><svg class="ht-svg" viewBox="0 0 64 64"><rect x="7" y="34" width="13" height="23" rx="6.5" fill="url(#gW)"/><rect x="25.5" y="21" width="13" height="36" rx="6.5" fill="url(#gW)"/><rect x="44" y="7" width="13" height="50" rx="6.5" fill="url(#gW)"/></svg></span><span class="ht-label">活動比較</span></button>
     </div>
 
     <div class="home-row">

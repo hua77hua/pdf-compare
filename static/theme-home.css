@@ -167,3 +167,33 @@ body {
 .t-teal   { --jelly: rgba(70,200,190,.50);  background: linear-gradient(150deg, #9ae9d4 0%, #74d3cb 50%, #6bb8ea 100%); }
 .t-pink   { --jelly: rgba(245,110,160,.50); background: linear-gradient(150deg, #f7b0cc 0%, #f28fb8 50%, #ec7fa8 100%); }
 .t-purple { --jelly: rgba(150,110,245,.50); background: linear-gradient(150deg, #b9a2fa 0%, #9d88f7 50%, #8a85f2 100%); }
+
+/* ── 首頁圖塊 v3：厚玻璃果凍(寬扁圓角、亮緣、左上高光、立體白色圖示) ── */
+.home-tiles { gap: 18px; }
+.home-tile {
+  height: 168px; padding: 18px 10px 16px; gap: 6px; justify-content: center;
+  border-radius: 40px; border: 3px solid rgba(255,255,255,.55);
+  box-shadow:
+    0 24px 40px -12px var(--jelly, rgba(110,100,230,.5)),
+    0 4px 10px rgba(80,70,180,.15),
+    inset 0 0 0 1.5px rgba(255,255,255,.55),
+    inset 0 4px 10px rgba(255,255,255,.65),
+    inset 0 -14px 22px rgba(255,255,255,.22),
+    inset 0 -2px 6px rgba(255,255,255,.5);
+}
+.home-tile::before {            /* 左上弧形高光 */
+  left: 5%; right: auto; top: 6%; width: 62%; height: 38%;
+  border-radius: 40px 60% 60% 40% / 100% 100% 70% 70%;
+  background: linear-gradient(160deg, rgba(255,255,255,.7) 0%, rgba(255,255,255,.14) 70%, transparent 100%);
+  transform: rotate(-4deg);
+}
+.home-tile::after { left: 10%; right: 10%; bottom: 3px; height: 22%; background: radial-gradient(ellipse at center, rgba(255,255,255,.4), transparent 72%); }
+.ht-ico { display: flex; filter: drop-shadow(0 8px 8px rgba(40,20,100,.25)) drop-shadow(0 0 8px rgba(255,255,255,.4)); }
+.ht-svg { width: 68px; height: 68px; overflow: visible; }
+.ht-label { font-size: 18px; font-weight: 800; letter-spacing: .5px; text-shadow: 0 2px 8px rgba(40,20,100,.35); }
+.t-orange { background: linear-gradient(135deg, #ffc46b 0%, #ff8f7e 55%, #ee7298 100%); }
+.t-blue   { background: linear-gradient(135deg, #8cc6ff 0%, #6f9bff 55%, #7e8cf5 100%); }
+.t-teal   { background: linear-gradient(135deg, #8fe8d7 0%, #5fd0cb 55%, #59b4e6 100%); }
+.t-pink   { background: linear-gradient(135deg, #ffbdd6 0%, #f68fb9 55%, #e873a6 100%); }
+.t-purple { background: linear-gradient(135deg, #c3a8ff 0%, #9d84f8 55%, #7f84f0 100%); }
+@media (max-width: 899px) { .home-tile { height: 148px; } .ht-svg { width: 56px; height: 56px; } }
