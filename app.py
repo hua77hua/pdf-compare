@@ -843,7 +843,7 @@ def get_doc_file(category):
 # 搜尋別名：打 NEO / Air / Pro 也要找得到 PDF 裡寫 MBN / MBA / MBP 的資料
 # key 是正規表示式（不分大小寫），命中的部分會被換成 value 另外再搜一次
 EDU_SEARCH_ALIASES = {
-    r'\bneo\b': ['MBN'],
+    r'\bneo\b': ['MBN', 'MacBookNeo'],
     r'\b(macbook\s*)?air\b': ['MBA'],
     r'\b(macbook\s*)?pro\b': ['MBP'],
 }
@@ -942,6 +942,10 @@ def _alias_variants(token):
     for k, vs in EDU_SEARCH_ALIASES.items():
         if re.search(k, token, re.I):
             out += [re.sub(k, v, token, flags=re.I).lower() for v in vs]
+    # MBP14 / MBA13 … 也要找得到 PDF 裡寫成 MacBook Pro 14 / MacBook Air 13 的品名
+    m = re.fullmatch(r'mb([pa])(\d+)', token, re.I)
+    if m:
+        out.append(('macbookpro' if m.group(1).lower() == 'p' else 'macbookair') + m.group(2))
     return out
 
 
@@ -970,6 +974,7 @@ def current_products():
     out, seen = [], set()
     for d in rows:
         blob = _bts_norm(' '.join([d['grp'], d['name'], d['model'], d['code']]))
+        blob = re.sub(r'[()（）,，吋]', '', blob)   # 「MacBook Pro (14吋)」也能比對到 macbookpro14
         if all(any(v in blob for v in vs) for vs in tokens) and d['code'] not in seen:
             seen.add(d['code'])
             out.append(d)
