@@ -1242,7 +1242,7 @@ function warrantyPick(which) {
 
 async function loadHome() {
   const cats = [['current', '目前活動', 'hsCurrent'], ['edu', '教育價貨號', 'hsEdu'], ['sku', '貨號表', 'hsSku'],
-                ['applecare', 'AppleCare', 'hsAc'], ['jc', 'JC安達產物', 'hsJc'], ['epbox', 'EPBOX舊換新', null]];
+                ['applecare', 'AppleCare', 'hsAc'], ['jc', 'JC安達產物', 'hsJc'], ['epbox', 'EPBox舊換新', null]];
   const metas = await Promise.all(cats.map(([c]) =>
     fetch(`${API}/docs/${c}`).then(r => r.json()).catch(() => null)));
   const rows = [];
