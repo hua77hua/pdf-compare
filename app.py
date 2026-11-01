@@ -95,7 +95,7 @@ def init_db():
 
 
 # Categories that each keep a single most-recent PDF
-DOC_CATEGORIES = {'edu', 'sku', 'current', 'bts', 'warranty'}
+DOC_CATEGORIES = {'edu', 'sku', 'current', 'bts', 'applecare', 'jc'}
 
 
 def extract_pdf_data(filepath):

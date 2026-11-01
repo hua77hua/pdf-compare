@@ -99,3 +99,7 @@ body {
 }
 .cur-chip:hover { transform: translateY(-1px); }
 .cur-chip.active { background: var(--violet); color: #fff; box-shadow: 0 6px 14px rgba(122,120,255,.35), inset 0 1.5px 0 rgba(255,255,255,.5); }
+
+/* ── 延長保固：切換按鈕 + 只顯示選中的那份 PDF ── */
+.warranty-pick { margin: 12px 12px 0; }
+.doc-warranty.hidden { display: none; }

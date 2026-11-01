@@ -319,17 +319,33 @@
   </section>
 
   <section id="view-warranty" class="view">
-    <div class="block doc-block doc-sku doc-warranty">
+    <div class="cur-chips warranty-pick" id="warrantyPick">
+      <button class="cur-chip active" data-w="applecare" onclick="warrantyPick('applecare')">🍎 AppleCare</button>
+      <button class="cur-chip" data-w="jc" onclick="warrantyPick('jc')">🛡️ JC美商安達</button>
+    </div>
+    <div class="block doc-block doc-sku doc-warranty " id="wblock-applecare">
+      <div class="blk-hd">
+        <span class="blk-ico">🍎</span>
+        <div class="blk-hd-text">
+          <div class="blk-title">AppleCare</div>
+          <div class="blk-sub" id="applecareSub">載入中…</div>
+        </div>
+        <input type="file" id="applecareFile" accept=".pdf" style="display:none">
+        <button class="doc-up-btn" onclick="document.getElementById('applecareFile').click()">⬆ 上傳新檔</button>
+      </div>
+      <div class="blk-bd doc-bd" id="applecareBody"></div>
+    </div>
+    <div class="block doc-block doc-sku doc-warranty hidden" id="wblock-jc">
       <div class="blk-hd">
         <span class="blk-ico">🛡️</span>
         <div class="blk-hd-text">
-          <div class="blk-title">延長保固</div>
-          <div class="blk-sub" id="warrantySub">載入中…</div>
+          <div class="blk-title">JC美商安達</div>
+          <div class="blk-sub" id="jcSub">載入中…</div>
         </div>
-        <input type="file" id="warrantyFile" accept=".pdf" style="display:none">
-        <button class="doc-up-btn" onclick="document.getElementById('warrantyFile').click()">⬆ 上傳新檔</button>
+        <input type="file" id="jcFile" accept=".pdf" style="display:none">
+        <button class="doc-up-btn" onclick="document.getElementById('jcFile').click()">⬆ 上傳新檔</button>
       </div>
-      <div class="blk-bd doc-bd" id="warrantyBody"></div>
+      <div class="blk-bd doc-bd" id="jcBody"></div>
     </div>
   </section>
 </div><!-- /app -->

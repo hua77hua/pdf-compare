@@ -1160,7 +1160,7 @@ function toast(msg, type = 'info') {
 //  MAIN TABS + PDF BOARDS  (教育價活動 / 貨號表)
 // ═══════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
-  ['edu', 'sku', 'current', 'warranty'].forEach(setupDoc);
+  ['edu', 'sku', 'current', 'applecare', 'jc'].forEach(setupDoc);
   loadHome();   // 首頁是預設頁，開頁即載入
   const q = document.getElementById('eduQuery');
   if (q) {
@@ -1225,7 +1225,18 @@ function switchView(view) {
   if (view === 'current') { loadDoc('current'); loadCurProducts(document.getElementById('curQuery').value.trim()); }
   if (view === 'edu') { loadDoc('edu'); loadEduProducts(document.getElementById('eduQuery').value.trim()); }
   if (view === 'sku') { loadDoc('sku'); }
-  if (view === 'warranty') { loadDoc('warranty'); }
+  if (view === 'warranty') warrantyPick(_warrantyCur);
+}
+
+// 延長保固：AppleCare / JC美商安達 兩份 PDF，按鈕切換
+let _warrantyCur = 'applecare';
+function warrantyPick(which) {
+  _warrantyCur = which;
+  document.querySelectorAll('#warrantyPick .cur-chip').forEach(b =>
+    b.classList.toggle('active', b.dataset.w === which));
+  ['applecare', 'jc'].forEach(c =>
+    document.getElementById('wblock-' + c).classList.toggle('hidden', c !== which));
+  loadDoc(which);
 }
 
 async function loadHome() {
