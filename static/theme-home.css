@@ -103,3 +103,9 @@ body {
 /* ── 延長保固：切換按鈕 + 只顯示選中的那份 PDF ── */
 .warranty-pick { margin: 12px 12px 0; }
 .doc-warranty.hidden { display: none; }
+
+/* ── 首頁第 5 個圖塊 + 延長保固圖片 ── */
+.home-tiles { grid-template-columns: repeat(5, 1fr); }
+.t-pink { background: linear-gradient(145deg, #ffa6c9 0%, #ff86b4 55%, #ff7aa0 100%); }
+.doc-img { display: block; max-width: 100%; height: auto; margin: 0 auto; border-radius: 12px; }
+@media (max-width: 899px) { .home-tiles { grid-template-columns: repeat(2, 1fr); } }

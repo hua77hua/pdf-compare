@@ -3,6 +3,7 @@ import json
 import re
 import sqlite3
 import difflib
+import mimetypes
 from datetime import datetime
 
 from flask import Flask, request, jsonify, send_from_directory
@@ -95,6 +96,9 @@ def init_db():
 
 
 # Categories that each keep a single most-recent PDF
+# 延長保固這兩格除了 PDF 也收圖片(JPG/PNG)
+IMAGE_OK_CATEGORIES = {'applecare', 'jc'}
+IMAGE_EXTS = ('.jpg', '.jpeg', '.png')
 DOC_CATEGORIES = {'edu', 'sku', 'current', 'bts', 'applecare', 'jc'}
 
 
@@ -733,12 +737,13 @@ def get_doc(category):
         return jsonify({'error': '類別不存在'}), 404
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    row = conn.execute('SELECT orig_name, upload_time FROM single_docs WHERE category = ?',
+    row = conn.execute('SELECT orig_name, stored_name, upload_time FROM single_docs WHERE category = ?',
                        (category,)).fetchone()
     conn.close()
     if not row:
         return jsonify({'exists': False})
-    return jsonify({'exists': True, 'name': row['orig_name'], 'upload_time': row['upload_time']})
+    kind = 'image' if row['stored_name'].lower().endswith(IMAGE_EXTS) else 'pdf'
+    return jsonify({'exists': True, 'name': row['orig_name'], 'upload_time': row['upload_time'], 'kind': kind})
 
 
 @app.route('/api/docs/<category>', methods=['POST'])
@@ -749,15 +754,21 @@ def upload_doc(category):
         return jsonify({'error': '未選擇文件'}), 400
 
     file = request.files['file']
-    if not file.filename.lower().endswith('.pdf'):
-        return jsonify({'error': '只支援 PDF 文件'}), 400
+    ext = os.path.splitext(file.filename.lower())[1]
+    allowed = ('.pdf',) + (IMAGE_EXTS if category in IMAGE_OK_CATEGORIES else ())
+    if ext not in allowed:
+        return jsonify({'error': '只支援 PDF 或 JPG/PNG 圖片' if category in IMAGE_OK_CATEGORIES
+                        else '只支援 PDF 文件'}), 400
 
     # Fixed stored name per category → new upload always overwrites the old file
-    stored_name = f'single_{category}.pdf'
+    stored_name = f'single_{category}{ext}'
     filepath = os.path.join(UPLOAD_FOLDER, stored_name)
-    file.save(filepath)
-
     conn = sqlite3.connect(DB_PATH)
+    old = conn.execute('SELECT stored_name FROM single_docs WHERE category = ?', (category,)).fetchone()
+    file.save(filepath)
+    if old and old[0] != stored_name:      # 換了副檔名(PDF ↔ JPG)就清掉舊檔
+        try: os.remove(os.path.join(UPLOAD_FOLDER, old[0]))
+        except OSError: pass
     conn.execute(
         'INSERT INTO single_docs (category, orig_name, stored_name, upload_time) '
         'VALUES (?, ?, ?, ?) '
@@ -832,7 +843,8 @@ def get_doc_file(category):
     conn.close()
     if not row or not os.path.exists(os.path.join(UPLOAD_FOLDER, row[0])):
         return jsonify({'error': '檔案不存在'}), 404
-    resp = send_from_directory(UPLOAD_FOLDER, row[0], mimetype='application/pdf')
+    resp = send_from_directory(UPLOAD_FOLDER, row[0],
+                               mimetype=mimetypes.guess_type(row[0])[0] or 'application/pdf')
     resp.headers['Cache-Control'] = 'no-store'
     return resp
 

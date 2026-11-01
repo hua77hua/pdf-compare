@@ -61,6 +61,7 @@
       <button class="home-tile t-orange" onclick="switchView('current')"><span class="ht-ico">📢</span><span class="ht-label">目前活動查詢</span></button>
       <button class="home-tile t-blue" onclick="switchView('edu')"><span class="ht-ico">🎓</span><span class="ht-label">教育優惠價格</span></button>
       <button class="home-tile t-teal" onclick="switchView('sku')"><span class="ht-ico">🏷️</span><span class="ht-label">貨號表</span></button>
+      <button class="home-tile t-pink" onclick="switchView('warranty')"><span class="ht-ico">🛡️</span><span class="ht-label">延長保固</span></button>
       <button class="home-tile t-purple" onclick="switchView('compare')"><span class="ht-ico">📊</span><span class="ht-label">活動比較</span></button>
     </div>
 
@@ -75,6 +76,8 @@
           <div class="hs hs-pink"><div class="hs-l">目前活動 PDF</div><div class="hs-n" id="hsCurrent">–</div></div>
           <div class="hs hs-blue"><div class="hs-l">教育價 PDF</div><div class="hs-n" id="hsEdu">–</div></div>
           <div class="hs hs-violet"><div class="hs-l">貨號表 PDF</div><div class="hs-n" id="hsSku">–</div></div>
+          <div class="hs hs-pink"><div class="hs-l">AppleCare</div><div class="hs-n" id="hsAc">–</div></div>
+          <div class="hs hs-blue"><div class="hs-l">JC美商安達</div><div class="hs-n" id="hsJc">–</div></div>
           <div class="hs hs-mint"><div class="hs-l">歷史記錄</div><div class="hs-n" id="hsHist">–</div></div>
         </div>
         <button class="home-link" onclick="switchView('compare')">歷史記錄查詢 ›</button>
@@ -330,7 +333,7 @@
           <div class="blk-title">AppleCare</div>
           <div class="blk-sub" id="applecareSub">載入中…</div>
         </div>
-        <input type="file" id="applecareFile" accept=".pdf" style="display:none">
+        <input type="file" id="applecareFile" accept=".pdf,.jpg,.jpeg,.png" style="display:none">
         <button class="doc-up-btn" onclick="document.getElementById('applecareFile').click()">⬆ 上傳新檔</button>
       </div>
       <div class="blk-bd doc-bd" id="applecareBody"></div>
@@ -342,7 +345,7 @@
           <div class="blk-title">JC美商安達</div>
           <div class="blk-sub" id="jcSub">載入中…</div>
         </div>
-        <input type="file" id="jcFile" accept=".pdf" style="display:none">
+        <input type="file" id="jcFile" accept=".pdf,.jpg,.jpeg,.png" style="display:none">
         <button class="doc-up-btn" onclick="document.getElementById('jcFile').click()">⬆ 上傳新檔</button>
       </div>
       <div class="blk-bd doc-bd" id="jcBody"></div>

@@ -1240,7 +1240,8 @@ function warrantyPick(which) {
 }
 
 async function loadHome() {
-  const cats = [['current', '目前活動', 'hsCurrent'], ['edu', '教育價貨號', 'hsEdu'], ['sku', '貨號表', 'hsSku']];
+  const cats = [['current', '目前活動', 'hsCurrent'], ['edu', '教育價貨號', 'hsEdu'], ['sku', '貨號表', 'hsSku'],
+                ['applecare', 'AppleCare', 'hsAc'], ['jc', 'JC美商安達', 'hsJc']];
   const metas = await Promise.all(cats.map(([c]) =>
     fetch(`${API}/docs/${c}`).then(r => r.json()).catch(() => null)));
   const rows = [];
@@ -1248,7 +1249,7 @@ async function loadHome() {
     const m = metas[i], el = document.getElementById(id);
     if (m && m.exists) {
       el.textContent = '已上傳';
-      rows.push(`<a class="home-latest-row" onclick="switchView('${c}')"><span class="hl-tag">${label}</span>` +
+      rows.push(`<a class="home-latest-row" onclick="switchView('${c === 'applecare' || c === 'jc' ? 'warranty' : c}')"><span class="hl-tag">${label}</span>` +
         `<span class="hl-name">${esc(m.name)}</span><span class="hl-date">${fmtDate(m.upload_time)}</span></a>`);
     } else {
       el.textContent = '未上傳';
@@ -1279,6 +1280,7 @@ async function loadDoc(cat) {
 }
 
 function renderDoc(cat, meta) {
+  const imgOk = cat === 'applecare' || cat === 'jc';
   const sub  = document.getElementById(cat + 'Sub');
   const body = document.getElementById(cat + 'Body');
   if (meta && meta.exists) {
@@ -1295,6 +1297,11 @@ function renderDoc(cat, meta) {
       <div class="pdf-scroll" id="${cat}Scroll">
         <div class="doc-uploading"><div class="spin"></div><div>載入 PDF 中…</div></div>
       </div>`;
+    if (meta.kind === 'image') {
+      document.getElementById(cat + 'Scroll').innerHTML =
+        `<img class="doc-img" src="${src}" alt="${esc(meta.name)}">`;
+      return;
+    }
     renderPdf(cat, src).catch(() => {
       // Fallback if PDF.js unavailable: native iframe (best-effort) + clear hint
       const sc = document.getElementById(cat + 'Scroll');
@@ -1306,9 +1313,9 @@ function renderDoc(cat, meta) {
     body.innerHTML = `
       <div class="doc-drop" id="${cat}Drop">
         <div class="doc-drop-ico">📄</div>
-        <div class="doc-drop-title">尚未上傳 PDF</div>
-        <div class="doc-drop-desc">點擊下方按鈕，或將 PDF 拖曳到這裡<br>上傳後銷售人員即可直接瀏覽，舊檔會自動被取代</div>
-        <button class="doc-drop-btn" onclick="document.getElementById('${cat}File').click()">⬆ 上傳 PDF</button>
+        <div class="doc-drop-title">尚未上傳${imgOk ? '檔案' : ' PDF'}</div>
+        <div class="doc-drop-desc">點擊下方按鈕，或將${imgOk ? ' PDF / JPG ' : ' PDF '}拖曳到這裡<br>上傳後銷售人員即可直接瀏覽，舊檔會自動被取代</div>
+        <button class="doc-drop-btn" onclick="document.getElementById('${cat}File').click()">⬆ 上傳${imgOk ? '檔案' : ' PDF'}</button>
       </div>`;
     wireDrop(cat);
   }
@@ -1370,7 +1377,10 @@ function wireDrop(cat) {
 }
 
 async function uploadDoc(cat, file) {
-  if (!file.name.toLowerCase().endsWith('.pdf')) { toast('請選擇 PDF 格式的文件', 'error'); return; }
+  const imgOk = cat === 'applecare' || cat === 'jc';
+  if (!/\.pdf$/i.test(file.name) && !(imgOk && /\.(jpe?g|png)$/i.test(file.name))) {
+    toast(imgOk ? '請選擇 PDF 或 JPG/PNG 檔案' : '請選擇 PDF 格式的文件', 'error'); return;
+  }
   const body = document.getElementById(cat + 'Body');
   body.innerHTML = `<div class="doc-uploading"><div class="spin"></div><div>上傳中，請稍候…</div></div>`;
   try {
