@@ -860,7 +860,10 @@ def edu_products():
                           for v in vs if re.search(k, q, re.I)]
         m = re.fullmatch(r'mb([pa])(\d+)', q.replace(' ', ''), re.I)   # MBP14 → MacBook Pro 14
         if m:
-            variants.append(('MacBookPro' if m.group(1).lower() == 'p' else 'MacBookAir') + m.group(2))
+            kind = 'P' if m.group(1).lower() == 'p' else 'A'
+            variants.append(('MacBookPro' if kind == 'P' else 'MacBookAir') + m.group(2))
+            # 教育價清單的品名寫「14.2吋MBP」「13.6吋MBA」「15.3吋MBA」「16.2吋MBP」→ 用尺寸開頭比對
+            variants.append(f'{m.group(2)}.%吋MB{kind}')
         # 同時比對「去掉空白」的版本，讓 MBA 13 / MBA13 都找得到
         clause = ' OR '.join(['(name LIKE ? OR REPLACE(name, \' \', \'\') LIKE ? '
                               'OR code LIKE ? OR full_code LIKE ?)'] * len(variants))
