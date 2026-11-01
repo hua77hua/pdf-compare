@@ -847,11 +847,6 @@ CUR_QUICK = {
     '配件': ACCESSORY_TERMS,
     # Watch 只比對品名的 AW 縮寫：分類欄會把後面的 AirPods、線材也歸到「Apple Watch Ultra 4」
     'apple watch': 'AW S|AW U',
-    'watch s12': 'AW S12',
-    'watch s11': 'AW S11',
-    'watch se': 'AW SE',
-    'watch ultra 3': 'AW Ultra 3',
-    'watch ultra 4': 'AW Ultra 4',
     '耳機': 'AirPods|耳機|EarPods',
 }
 
