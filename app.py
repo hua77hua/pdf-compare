@@ -840,6 +840,12 @@ def get_doc_file(category):
 # ═══════════════════════════════════════════════════════════════════════════
 #  教育價查詢清單  (品名 / 貨號 / 折抵金額 / 全額貨號)
 # ═══════════════════════════════════════════════════════════════════════════
+# 快速分類：搜尋詞用「|」分隔代表「或」。點「配件」「Apple Watch」按鈕等同搜尋下面這串
+ACCESSORY_TERMS = '配件|Apple Pencil|Pencil|Keyboard|鍵盤|螢幕|Display|Pro Stand|ProStand|VESA'
+EDU_QUICK = {'配件': ACCESSORY_TERMS, 'apple watch': 'Apple Watch|AW S|AW U'}
+CUR_QUICK = {'配件': ACCESSORY_TERMS}
+
+
 # 搜尋別名：打 NEO / Air / Pro 也要找得到 PDF 裡寫 MBN / MBA / MBP 的資料
 # key 是正規表示式（不分大小寫），命中的部分會被換成 value 另外再搜一次
 EDU_SEARCH_ALIASES = {
@@ -855,15 +861,18 @@ def edu_products():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     if q:
-        variants = [q] + [re.sub(k, v, q, flags=re.I)
-                          for k, vs in EDU_SEARCH_ALIASES.items()
-                          for v in vs if re.search(k, q, re.I)]
-        m = re.fullmatch(r'mb([pa])(\d+)', q.replace(' ', ''), re.I)   # MBP14 → MacBook Pro 14
-        if m:
-            kind = 'P' if m.group(1).lower() == 'p' else 'A'
-            variants.append(('MacBookPro' if kind == 'P' else 'MacBookAir') + m.group(2))
-            # 教育價清單的品名寫「14.2吋MBP」「13.6吋MBA」「15.3吋MBA」「16.2吋MBP」→ 用尺寸開頭比對
-            variants.append(f'{m.group(2)}.%吋MB{kind}')
+        q = EDU_QUICK.get(q.lower(), q)
+        variants = []
+        for part in [x.strip() for x in q.split('|') if x.strip()]:
+            variants += [part] + [re.sub(k, v, part, flags=re.I)
+                                  for k, vs in EDU_SEARCH_ALIASES.items()
+                                  for v in vs if re.search(k, part, re.I)]
+            m = re.fullmatch(r'mb([pa])(\d+)', part.replace(' ', ''), re.I)   # MBP14 → MacBook Pro 14
+            if m:
+                kind = 'P' if m.group(1).lower() == 'p' else 'A'
+                variants.append(('MacBookPro' if kind == 'P' else 'MacBookAir') + m.group(2))
+                # 教育價清單的品名寫「14.2吋MBP」「13.6吋MBA」「15.3吋MBA」「16.2吋MBP」→ 用尺寸開頭比對
+                variants.append(f'{m.group(2)}.%吋MB{kind}')
         # 同時比對「去掉空白」的版本，讓 MBA 13 / MBA13 都找得到
         clause = ' OR '.join(['(name LIKE ? OR REPLACE(name, \' \', \'\') LIKE ? '
                               'OR code LIKE ? OR full_code LIKE ?)'] * len(variants))
@@ -976,15 +985,16 @@ def current_products():
         'SELECT grp, code, name, model, orig_price, member_price, discount, promo_price, activity '
         'FROM cur_products ORDER BY id').fetchall()]
     conn.close()
-    tokens = _query_tokens(q)
+    q = CUR_QUICK.get(q.lower(), q)
+    groups = [g for g in (_query_tokens(x) for x in q.split('|') if x.strip()) if g]
     out, seen = [], set()
     for d in rows:
         blob = _bts_norm(' '.join([d['grp'], d['name'], d['model'], d['code']]))
         blob = re.sub(r'[()（）,，吋]', '', blob)   # 「MacBook Pro (14吋)」也能比對到 macbookpro14
-        if all(any(v in blob for v in vs) for vs in tokens) and d['code'] not in seen:
+        if any(all(any(v in blob for v in vs) for vs in tokens) for tokens in groups) and d['code'] not in seen:
             seen.add(d['code'])
             out.append(d)
-    return jsonify({'total': len(rows), 'rows': out if tokens else []})
+    return jsonify({'total': len(rows), 'rows': out if groups else []})
 
 
 @app.route('/api/current-products/rebuild', methods=['POST'])
