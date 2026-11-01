@@ -46,7 +46,7 @@
       <span class="mtab-ico">🛡️</span><span class="mtab-label">延長保固</span>
     </button>
     <button class="mtab" data-view="epbox" onclick="switchView('epbox')">
-      <span class="mtab-ico">♻️</span><span class="mtab-label">EPBox舊換新</span>
+      <span class="mtab-ico">♻️</span><span class="mtab-label">EPBox舊換新價格</span>
     </button>
     <button class="mtab" data-view="compare" onclick="switchView('compare')">
       <span class="mtab-ico">🔍</span><span class="mtab-label">活動比較</span>
@@ -65,6 +65,7 @@
       <button class="home-tile t-blue" onclick="switchView('edu')"><span class="ht-ico"><img class="ht-svg" src="icons/gradcap.svg" alt=""></span><span class="ht-label">教育優惠價格</span></button>
       <button class="home-tile t-teal" onclick="switchView('sku')"><span class="ht-ico"><img class="ht-svg" src="icons/tag.svg" alt=""></span><span class="ht-label">貨號表</span></button>
       <button class="home-tile t-pink" onclick="switchView('warranty')"><span class="ht-ico"><img class="ht-svg" src="icons/shield.svg" alt=""></span><span class="ht-label">延長保固</span></button>
+      <button class="home-tile t-green" onclick="switchView('epbox')"><span class="ht-ico"><img class="ht-svg" src="icons/epbox.svg" alt=""></span><span class="ht-label">EPBox舊換新價格</span></button>
       <button class="home-tile t-purple" onclick="switchView('compare')"><span class="ht-ico"><img class="ht-svg" src="icons/bars.svg" alt=""></span><span class="ht-label">活動比較</span></button>
     </div>
 
@@ -126,23 +127,7 @@
   </section>
 
   <section id="view-epbox" class="view">
-    <div class="cur-chips warranty-pick" id="epboxPick">
-      <button class="cur-chip active" data-e="epbox" onclick="epboxPick('epbox')">♻️ EPBox舊換新</button>
-      <button class="cur-chip" data-e="epboxprice" onclick="epboxPick('epboxprice')">💲 EPBox期間價格</button>
-    </div>
-    <div class="block doc-block doc-sku doc-warranty" id="eblock-epbox">
-      <div class="blk-hd">
-        <span class="blk-ico">♻️</span>
-        <div class="blk-hd-text">
-          <div class="blk-title">EPBox舊換新</div>
-          <div class="blk-sub" id="epboxSub">載入中…</div>
-        </div>
-        <input type="file" id="epboxFile" accept=".pdf,.jpg,.jpeg,.png" style="display:none">
-        <button class="doc-up-btn" onclick="document.getElementById('epboxFile').click()">⬆ 上傳新檔</button>
-      </div>
-      <div class="blk-bd doc-bd" id="epboxBody"></div>
-    </div>
-    <div class="block doc-block doc-sku doc-warranty hidden" id="eblock-epboxprice">
+    <div class="block doc-block doc-sku doc-warranty">
       <div class="blk-hd">
         <span class="blk-ico">💲</span>
         <div class="blk-hd-text">

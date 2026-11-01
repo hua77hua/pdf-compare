@@ -1160,7 +1160,7 @@ function toast(msg, type = 'info') {
 //  MAIN TABS + PDF BOARDS  (教育價活動 / 貨號表)
 // ═══════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
-  ['edu', 'sku', 'current', 'applecare', 'jc', 'epbox', 'epboxprice'].forEach(setupDoc);
+  ['edu', 'sku', 'current', 'applecare', 'jc', 'epboxprice'].forEach(setupDoc);
   loadHome();   // 首頁是預設頁，開頁即載入
   const q = document.getElementById('eduQuery');
   if (q) {
@@ -1226,7 +1226,7 @@ function switchView(view) {
   if (view === 'edu') { loadDoc('edu'); loadEduProducts(document.getElementById('eduQuery').value.trim()); }
   if (view === 'sku') { loadDoc('sku'); }
   if (view === 'warranty') warrantyPick(_warrantyCur);
-  if (view === 'epbox') epboxPick(_epboxCur);
+  if (view === 'epbox') loadDoc('epboxprice');
 }
 
 // 延長保固：AppleCare / JC安達產物 兩份 PDF，按鈕切換
@@ -1240,20 +1240,9 @@ function warrantyPick(which) {
   if (which !== 'compare') loadDoc(which);
 }
 
-// EPBox：舊換新 / 期間價格 兩份檔案，按鈕切換
-let _epboxCur = 'epbox';
-function epboxPick(which) {
-  _epboxCur = which;
-  document.querySelectorAll('#epboxPick .cur-chip').forEach(b =>
-    b.classList.toggle('active', b.dataset.e === which));
-  ['epbox', 'epboxprice'].forEach(c =>
-    document.getElementById('eblock-' + c).classList.toggle('hidden', c !== which));
-  loadDoc(which);
-}
-
 async function loadHome() {
   const cats = [['current', '目前活動', 'hsCurrent'], ['edu', '教育價貨號', 'hsEdu'], ['sku', '貨號表', 'hsSku'],
-                ['applecare', 'AppleCare', 'hsAc'], ['jc', 'JC安達產物', 'hsJc'], ['epbox', 'EPBox舊換新', null], ['epboxprice', 'EPBox期間價格', null]];
+                ['applecare', 'AppleCare', 'hsAc'], ['jc', 'JC安達產物', 'hsJc'], ['epboxprice', 'EPBox期間價格', null]];
   const metas = await Promise.all(cats.map(([c]) =>
     fetch(`${API}/docs/${c}`).then(r => r.json()).catch(() => null)));
   const rows = [];
@@ -1292,7 +1281,7 @@ async function loadDoc(cat) {
 }
 
 function renderDoc(cat, meta) {
-  const imgOk = ['applecare', 'jc', 'epbox', 'epboxprice'].includes(cat);
+  const imgOk = ['applecare', 'jc', 'epboxprice'].includes(cat);
   const sub  = document.getElementById(cat + 'Sub');
   const body = document.getElementById(cat + 'Body');
   if (meta && meta.exists) {
@@ -1389,7 +1378,7 @@ function wireDrop(cat) {
 }
 
 async function uploadDoc(cat, file) {
-  const imgOk = ['applecare', 'jc', 'epbox', 'epboxprice'].includes(cat);
+  const imgOk = ['applecare', 'jc', 'epboxprice'].includes(cat);
   if (!/\.pdf$/i.test(file.name) && !(imgOk && /\.(jpe?g|png)$/i.test(file.name))) {
     toast(imgOk ? '請選擇 PDF 或 JPG/PNG 檔案' : '請選擇 PDF 格式的文件', 'error'); return;
   }

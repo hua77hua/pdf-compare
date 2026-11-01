@@ -206,3 +206,10 @@ body {
 .t-pink   { --jelly: rgba(255,50,130,.55); background: linear-gradient(135deg, #ff8fbe 0%, #ff4f97 50%, #e02a85 100%); }
 .t-purple { --jelly: rgba(130,60,255,.60); background: linear-gradient(135deg, #b583ff 0%, #8a52ff 50%, #5f4bf2 100%); }
 .home-tile { filter: saturate(1.12); }
+
+/* ── 首頁第 6 個圖塊（EPBox） ── */
+.home-tiles { grid-template-columns: repeat(6, 1fr); gap: 14px; }
+.ht-label { font-size: 16px; }
+.t-green { --jelly: rgba(60,190,90,.58); background: linear-gradient(135deg, #c4f061 0%, #4fd46a 50%, #17b58a 100%); }
+@media (max-width: 1280px) { .home-tiles { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 899px) { .home-tiles { grid-template-columns: repeat(2, 1fr); } }
