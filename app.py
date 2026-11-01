@@ -97,9 +97,9 @@ def init_db():
 
 # Categories that each keep a single most-recent PDF
 # 延長保固兩格與 EPBOX 舊換新除了 PDF 也收圖片(JPG/PNG)
-IMAGE_OK_CATEGORIES = {'applecare', 'jc', 'epbox'}
+IMAGE_OK_CATEGORIES = {'applecare', 'jc', 'epbox', 'epboxprice'}
 IMAGE_EXTS = ('.jpg', '.jpeg', '.png')
-DOC_CATEGORIES = {'edu', 'sku', 'current', 'bts', 'applecare', 'jc', 'epbox'}
+DOC_CATEGORIES = {'edu', 'sku', 'current', 'bts', 'applecare', 'jc', 'epbox', 'epboxprice'}
 
 
 def extract_pdf_data(filepath):
