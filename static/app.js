@@ -1228,7 +1228,7 @@ function switchView(view) {
   if (view === 'warranty') warrantyPick(_warrantyCur);
 }
 
-// 延長保固：AppleCare / JC美商安達 兩份 PDF，按鈕切換
+// 延長保固：AppleCare / JC安達產物 兩份 PDF，按鈕切換
 let _warrantyCur = 'applecare';
 function warrantyPick(which) {
   _warrantyCur = which;
@@ -1241,7 +1241,7 @@ function warrantyPick(which) {
 
 async function loadHome() {
   const cats = [['current', '目前活動', 'hsCurrent'], ['edu', '教育價貨號', 'hsEdu'], ['sku', '貨號表', 'hsSku'],
-                ['applecare', 'AppleCare', 'hsAc'], ['jc', 'JC美商安達', 'hsJc']];
+                ['applecare', 'AppleCare', 'hsAc'], ['jc', 'JC安達產物', 'hsJc']];
   const metas = await Promise.all(cats.map(([c]) =>
     fetch(`${API}/docs/${c}`).then(r => r.json()).catch(() => null)));
   const rows = [];
