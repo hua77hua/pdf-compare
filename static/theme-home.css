@@ -197,3 +197,4 @@ body {
 .t-pink   { background: linear-gradient(135deg, #ffbdd6 0%, #f68fb9 55%, #e873a6 100%); }
 .t-purple { background: linear-gradient(135deg, #c3a8ff 0%, #9d84f8 55%, #7f84f0 100%); }
 @media (max-width: 899px) { .home-tile { height: 148px; } .ht-svg { width: 56px; height: 56px; } }
+.ht-svg { object-fit: contain; width: 76px; height: 76px; }

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="256" height="256"><defs><filter id="bl" x="-30%" y="-100%" width="160%" height="300%"><feGaussianBlur stdDeviation="3.5"/></filter></defs><ellipse cx="64" cy="118" rx="38" ry="6" fill="#2a1a6a" opacity=".22" filter="url(#bl)"/><defs>
+<linearGradient id="w" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d7dff2"/></linearGradient>
+<linearGradient id="o" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffa070"/><stop offset="1" stop-color="#e9456c"/></linearGradient>
+<linearGradient id="i" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#c8334f"/><stop offset="1" stop-color="#f27a62"/></linearGradient>
+<linearGradient id="y" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffe08f"/><stop offset="1" stop-color="#f5b645"/></linearGradient></defs>
+<rect x="34" y="72" width="22" height="38" rx="11" transform="rotate(-18 45 91)" fill="url(#y)"/>
+<path d="M18 50 L80 22 Q96 17 96 36 V92 Q96 111 80 106 L18 80 Q8 76 8 65 Q8 54 18 50Z" fill="url(#w)"/>
+<path d="M22 54 L78 29 Q88 26 90 34 L30 62Z" fill="#fff" opacity=".7"/>
+<ellipse cx="94" cy="64" rx="19" ry="46" fill="url(#o)"/>
+<ellipse cx="97" cy="64" rx="12" ry="35" fill="url(#i)"/>
+<path d="M88 40 Q86 62 90 86" stroke="#fff" stroke-width="3" fill="none" opacity=".45" stroke-linecap="round"/>
+<ellipse cx="94" cy="26" rx="8" ry="4" fill="#fff" opacity=".55" transform="rotate(-20 94 26)"/></svg>
