@@ -841,7 +841,9 @@ def get_doc_file(category):
 #  教育價查詢清單  (品名 / 貨號 / 折抵金額 / 全額貨號)
 # ═══════════════════════════════════════════════════════════════════════════
 # 快速分類：搜尋詞用「|」分隔代表「或」。點「配件」「Apple Watch」按鈕等同搜尋下面這串
-ACCESSORY_TERMS = '配件|Apple Pencil|Pencil|Keyboard|鍵盤|螢幕|Display|Pro Stand|ProStand|VESA'
+ACCESSORY_TERMS = ('配件|Pencil|Keyboard|鍵盤|Mouse|滑鼠|Trackpad|螢幕|Display|Pro Stand|ProStand|VESA'
+                   '|Apple TV|HomePod|AirTag|保護殼|保護貼|保貼|防護邊框|邊框|掛繩|卡套|MagSafe'
+                   '|雙面夾|巧控|線|電源供應器|充電器|Beats')
 EDU_QUICK = {'配件': ACCESSORY_TERMS, 'apple watch': 'Apple Watch|AW S|AW U'}
 CUR_QUICK = {
     '配件': ACCESSORY_TERMS,
