@@ -133,3 +133,37 @@ body {
 .wc-tip { display: inline-block; margin-top: 4px; padding: 6px 12px; border-radius: 14px; background: #fff; box-shadow: 0 4px 10px rgba(110,100,230,.12); }
 .wc-foot { margin-top: 8px; font-size: 12px; color: var(--ink-soft); }
 @media (max-width: 640px) { .wc-tbl { font-size: 12px; } .wc-tbl tbody th { white-space: normal; } }
+
+/* ── 首頁圖塊：果凍質感（上緣高光 + 內部透光 + 下緣反光 + 彩色投影） ── */
+.home-tile {
+  position: relative; overflow: hidden; isolation: isolate;
+  border-radius: 34px; padding: 30px 12px 22px;
+  border: 1.5px solid rgba(255,255,255,.75);
+  box-shadow:
+    0 22px 38px -10px var(--jelly, rgba(110,100,230,.45)),   /* 彩色投影 */
+    0 6px 14px rgba(110,100,230,.18),
+    inset 0 3px 6px rgba(255,255,255,.75),                    /* 上緣高光 */
+    inset 0 -10px 18px rgba(255,255,255,.28),                 /* 下緣透光 */
+    inset 0 -3px 0 rgba(255,255,255,.35);
+  transition: transform .18s cubic-bezier(.3,1.6,.5,1), box-shadow .18s;
+}
+.home-tile::before {            /* 上半部玻璃高光 */
+  content: ''; position: absolute; z-index: -1; left: 6%; right: 6%; top: 3%; height: 46%;
+  border-radius: 28px 28px 60% 60% / 28px 28px 38% 38%;
+  background: linear-gradient(180deg, rgba(255,255,255,.62) 0%, rgba(255,255,255,.12) 100%);
+}
+.home-tile::after {             /* 下緣柔光反射 */
+  content: ''; position: absolute; z-index: -1; left: 14%; right: 14%; bottom: 4px; height: 26%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(255,255,255,.38), transparent 70%);
+}
+.home-tile:hover { transform: translateY(-4px) scale(1.025); }
+.home-tile:active { transform: translateY(0) scale(.97); }
+.ht-ico { font-size: 52px; line-height: 1.1; filter: drop-shadow(0 6px 8px rgba(40,20,90,.28)) drop-shadow(0 0 10px rgba(255,255,255,.35)); }
+.ht-label { font-size: 17px; letter-spacing: .5px; text-shadow: 0 2px 6px rgba(40,20,90,.28); }
+
+.t-orange { --jelly: rgba(255,120,110,.50); background: linear-gradient(150deg, #ffb877 0%, #ff9a85 50%, #f5809f 100%); }
+.t-blue   { --jelly: rgba(100,120,255,.50); background: linear-gradient(150deg, #8fbaff 0%, #7e93ff 50%, #8c7bf5 100%); }
+.t-teal   { --jelly: rgba(70,200,190,.50);  background: linear-gradient(150deg, #9ae9d4 0%, #74d3cb 50%, #6bb8ea 100%); }
+.t-pink   { --jelly: rgba(245,110,160,.50); background: linear-gradient(150deg, #f7b0cc 0%, #f28fb8 50%, #ec7fa8 100%); }
+.t-purple { --jelly: rgba(150,110,245,.50); background: linear-gradient(150deg, #b9a2fa 0%, #9d88f7 50%, #8a85f2 100%); }
