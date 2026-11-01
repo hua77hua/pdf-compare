@@ -843,7 +843,15 @@ def get_doc_file(category):
 # 快速分類：搜尋詞用「|」分隔代表「或」。點「配件」「Apple Watch」按鈕等同搜尋下面這串
 ACCESSORY_TERMS = '配件|Apple Pencil|Pencil|Keyboard|鍵盤|螢幕|Display|Pro Stand|ProStand|VESA'
 EDU_QUICK = {'配件': ACCESSORY_TERMS, 'apple watch': 'Apple Watch|AW S|AW U'}
-CUR_QUICK = {'配件': ACCESSORY_TERMS}
+CUR_QUICK = {
+    '配件': ACCESSORY_TERMS,
+    'apple watch': 'Apple Watch|AW S|AW U',   # 品名只寫 AW 縮寫、分類欄空白的列也要找得到
+    'watch s12': 'Apple Watch S12|AW S12',
+    'watch s11': 'Apple Watch S11|AW S11',
+    'watch se': 'Apple Watch SE|AW SE',
+    'watch ultra 3': 'Apple Watch Ultra 3|AW Ultra 3',
+    'watch ultra 4': 'Apple Watch Ultra 4|AW Ultra 4',
+}
 
 
 # 搜尋別名：打 NEO / Air / Pro 也要找得到 PDF 裡寫 MBN / MBA / MBP 的資料
