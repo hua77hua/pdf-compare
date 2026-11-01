@@ -945,6 +945,18 @@ def _alias_variants(token):
     return out
 
 
+def _query_tokens(q):
+    """先把整句裡的別名片語（如 MacBook Pro）整段抓出來當一個詞，
+    這樣不會被拆成 MacBook / Pro 兩個詞而找不到 PDF 裡寫的 MBP14 / MBP16。"""
+    tokens = []
+    for pat in EDU_SEARCH_ALIASES:
+        for m in re.finditer(pat, q, re.I):
+            tokens.append(_alias_variants(_bts_norm(m.group(0))))
+        q = re.sub(pat, ' ', q, flags=re.I)
+    tokens += [_alias_variants(_bts_norm(t)) for t in q.split() if t.strip()]
+    return tokens
+
+
 @app.route('/api/current-products', methods=['GET'])
 def current_products():
     q = request.args.get('q', '').strip()
@@ -954,7 +966,7 @@ def current_products():
         'SELECT grp, code, name, model, orig_price, member_price, discount, promo_price, activity '
         'FROM cur_products ORDER BY id').fetchall()]
     conn.close()
-    tokens = [_alias_variants(_bts_norm(t)) for t in q.split() if t.strip()]
+    tokens = _query_tokens(q)
     out, seen = [], set()
     for d in rows:
         blob = _bts_norm(' '.join([d['grp'], d['name'], d['model'], d['code']]))
