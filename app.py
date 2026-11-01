@@ -845,6 +845,8 @@ ACCESSORY_TERMS = ('配件|Pencil|Keyboard|鍵盤|Mouse|滑鼠|Trackpad|螢幕|D
                    '|Apple TV|HomePod|AirTag|保護殼|保護貼|保貼|防護邊框|邊框|掛繩|卡套|MagSafe'
                    '|雙面夾|巧控|線|電源供應器|充電器|Beats')
 EDU_QUICK = {'配件': ACCESSORY_TERMS, 'apple watch': 'Apple Watch|AW S|AW U'}
+# 「配件」按鈕不列副廠(自己直接搜品牌名仍然找得到)
+CUR_QUICK_EXCLUDE = {'配件': ['riivan', 'laut']}
 CUR_QUICK = {
     '配件': ACCESSORY_TERMS,
     # Watch 只比對品名的 AW 縮寫：分類欄會把後面的 AirPods、線材也歸到「Apple Watch Ultra 4」
@@ -992,12 +994,15 @@ def current_products():
         'SELECT grp, code, name, model, orig_price, member_price, discount, promo_price, activity '
         'FROM cur_products ORDER BY id').fetchall()]
     conn.close()
+    excluded = CUR_QUICK_EXCLUDE.get(q.lower(), [])
     q = CUR_QUICK.get(q.lower(), q)
     groups = [g for g in (_query_tokens(x) for x in q.split('|') if x.strip()) if g]
     out, seen = [], set()
     for d in rows:
         blob = _bts_norm(' '.join([d['grp'], d['name'], d['model'], d['code']]))
         blob = re.sub(r'[()（）,，吋]', '', blob)   # 「MacBook Pro (14吋)」也能比對到 macbookpro14
+        if any(x in blob for x in excluded):
+            continue
         if any(all(any(v in blob for v in vs) for vs in tokens) for tokens in groups) and d['code'] not in seen:
             seen.add(d['code'])
             out.append(d)
