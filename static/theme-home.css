@@ -198,3 +198,11 @@ body {
 .t-purple { background: linear-gradient(135deg, #c3a8ff 0%, #9d84f8 55%, #7f84f0 100%); }
 @media (max-width: 899px) { .home-tile { height: 148px; } .ht-svg { width: 56px; height: 56px; } }
 .ht-svg { object-fit: contain; width: 76px; height: 76px; }
+
+/* ── 首頁圖塊：顏色更鮮艷 ── */
+.t-orange { --jelly: rgba(255,90,60,.60);  background: linear-gradient(135deg, #ffb524 0%, #ff7a3a 50%, #f9386f 100%); }
+.t-blue   { --jelly: rgba(40,100,255,.60); background: linear-gradient(135deg, #3fb5ff 0%, #2f7bff 50%, #5a4ff0 100%); }
+.t-teal   { --jelly: rgba(0,190,170,.55);  background: linear-gradient(135deg, #3de8c0 0%, #12c4c4 50%, #1a94e8 100%); }
+.t-pink   { --jelly: rgba(255,50,130,.55); background: linear-gradient(135deg, #ff8fbe 0%, #ff4f97 50%, #e02a85 100%); }
+.t-purple { --jelly: rgba(130,60,255,.60); background: linear-gradient(135deg, #b583ff 0%, #8a52ff 50%, #5f4bf2 100%); }
+.home-tile { filter: saturate(1.12); }
