@@ -226,3 +226,4 @@ body {
   .app-hd { padding: 0 12px; }
   .hd-home { padding: 8px 14px; }
 }
+.home-row { grid-template-columns: 1fr; }

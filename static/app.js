@@ -1241,23 +1241,19 @@ function warrantyPick(which) {
 }
 
 async function loadHome() {
-  const cats = [['current', '目前活動', 'hsCurrent'], ['edu', '教育價貨號', 'hsEdu'], ['sku', '貨號表', 'hsSku'],
-                ['applecare', 'AppleCare', 'hsAc'], ['jc', 'JC安達產物', 'hsJc'], ['epboxprice', 'EPBox期間價格', null]];
+  const cats = [['current', '目前活動'], ['edu', '教育價貨號'], ['sku', '貨號表'],
+                ['applecare', 'AppleCare'], ['jc', 'JC安達產物'], ['epboxprice', 'EPBox期間價格']];
   const metas = await Promise.all(cats.map(([c]) =>
     fetch(`${API}/docs/${c}`).then(r => r.json()).catch(() => null)));
   const rows = [];
-  cats.forEach(([c, label, id], i) => {
-    const m = metas[i], el = id && document.getElementById(id);
-    if (m && m.exists) {
-      if (el) el.textContent = '已上傳';
-      rows.push(`<a class="home-latest-row" onclick="switchView('${c === 'applecare' || c === 'jc' ? 'warranty' : c === 'epboxprice' ? 'epbox' : c}')"><span class="hl-tag">${label}</span>` +
-        `<span class="hl-name">${esc(m.name)}</span><span class="hl-date">${fmtDate(m.upload_time)}</span></a>`);
-    } else if (el) {
-      el.textContent = '未上傳';
-    }
+  cats.forEach(([c, label], i) => {
+    const m = metas[i];
+    if (!m || !m.exists) return;
+    const view = c === 'applecare' || c === 'jc' ? 'warranty' : c === 'epboxprice' ? 'epbox' : c;
+    rows.push(`<a class="home-latest-row" onclick="switchView('${view}')"><span class="hl-tag">${label}</span>` +
+      `<span class="hl-name">${esc(m.name)}</span><span class="hl-date">${fmtDate(m.upload_time)}</span></a>`);
   });
   document.getElementById('homeLatest').innerHTML = rows.join('') || '尚未上傳任何檔案';
-  document.getElementById('hsHist').textContent = allRecords.length + ' 筆';
 }
 
 function setupDoc(cat) {
