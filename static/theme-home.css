@@ -109,3 +109,27 @@ body {
 .t-pink { background: linear-gradient(145deg, #ffa6c9 0%, #ff86b4 55%, #ff7aa0 100%); }
 .doc-img { display: block; max-width: 100%; height: auto; margin: 0 auto; border-radius: 12px; }
 @media (max-width: 899px) { .home-tiles { grid-template-columns: repeat(2, 1fr); } }
+
+/* ── 延長保固：快速比較 ── */
+.wc-body { padding: 18px 22px 26px; overflow-y: auto; }
+.wc-step { font-weight: 800; color: var(--ink); margin: 16px 0 8px; font-size: 14px; }
+.wc-step:first-child { margin-top: 0; }
+.wc-hint { color: var(--ink-soft); font-size: 13px; padding: 6px 4px; }
+.wc-price { max-width: 460px; }
+.wc-result { margin-top: 18px; display: flex; flex-direction: column; gap: 14px; }
+.wc-bubble {
+  background: rgba(255,255,255,.85); border: 1px solid var(--edge); border-radius: 26px;
+  padding: 16px 18px; box-shadow: var(--glass-fx);
+}
+.wc-title { font-size: 16px; font-weight: 800; color: var(--ink); margin-bottom: 10px; }
+.wc-tbl { width: 100%; border-collapse: collapse; font-size: 13px; color: var(--ink); }
+.wc-tbl th, .wc-tbl td { padding: 9px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.wc-tbl tbody th { width: 16%; color: var(--ink-soft); font-weight: 700; white-space: nowrap; }
+.wc-tbl thead th { font-size: 14px; }
+.wc-tbl b { font-size: 15px; }
+.wc-say { background: linear-gradient(145deg, rgba(235,240,255,.95), rgba(240,232,255,.95)); }
+.wc-say-hd { font-weight: 800; margin-bottom: 8px; color: var(--ink); }
+.wc-say ul { margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.7; color: var(--ink); }
+.wc-tip { display: inline-block; margin-top: 4px; padding: 6px 12px; border-radius: 14px; background: #fff; box-shadow: 0 4px 10px rgba(110,100,230,.12); }
+.wc-foot { margin-top: 8px; font-size: 12px; color: var(--ink-soft); }
+@media (max-width: 640px) { .wc-tbl { font-size: 12px; } .wc-tbl tbody th { white-space: normal; } }

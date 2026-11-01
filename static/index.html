@@ -323,10 +323,36 @@
 
   <section id="view-warranty" class="view">
     <div class="cur-chips warranty-pick" id="warrantyPick">
-      <button class="cur-chip active" data-w="applecare" onclick="warrantyPick('applecare')">🍎 AppleCare</button>
+      <button class="cur-chip active" data-w="compare" onclick="warrantyPick('compare')">⚖️ 快速比較</button>
+      <button class="cur-chip" data-w="applecare" onclick="warrantyPick('applecare')">🍎 AppleCare</button>
       <button class="cur-chip" data-w="jc" onclick="warrantyPick('jc')">🛡️ JC安達產物</button>
     </div>
-    <div class="block doc-block doc-sku doc-warranty " id="wblock-applecare">
+    <div class="block doc-block doc-warranty" id="wblock-compare">
+      <div class="blk-hd">
+        <span class="blk-ico">⚖️</span>
+        <div class="blk-hd-text">
+          <div class="blk-title">AppleCare+ vs JC安達產物</div>
+          <div class="blk-sub">選機型與售價區間，立刻看價格、年限、自負額差異</div>
+        </div>
+      </div>
+      <div class="blk-bd wc-body">
+        <div class="wc-step">① 選機型</div>
+        <div class="edu-searchbar">
+          <span class="edu-search-ico">🔍</span>
+          <input type="text" id="wcSearch" class="edu-search-inp" placeholder="搜尋機型…（例：iPhone 18 Pro、MacBook Air、AirPods）">
+        </div>
+        <div class="cur-chips" id="wcCats"></div>
+        <div class="cur-chips" id="wcModels"></div>
+        <div class="wc-step">② 機器售價區間（JC 依機器售價計費）</div>
+        <div class="edu-searchbar wc-price">
+          <span class="edu-search-ico">💲</span>
+          <input type="number" id="wcPrice" class="edu-search-inp" inputmode="numeric" placeholder="輸入機器售價，自動選區間（例：45000）">
+        </div>
+        <div class="cur-chips" id="wcBands"></div>
+        <div id="wcResult" class="wc-result"></div>
+      </div>
+    </div>
+    <div class="block doc-block doc-sku doc-warranty hidden" id="wblock-applecare">
       <div class="blk-hd">
         <span class="blk-ico">🍎</span>
         <div class="blk-hd-text">
@@ -362,5 +388,6 @@
   }
 </script>
 <script src="app.js"></script>
+<script src="warranty.js"></script>
 </body>
 </html>

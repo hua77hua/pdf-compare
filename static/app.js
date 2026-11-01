@@ -1229,14 +1229,14 @@ function switchView(view) {
 }
 
 // 延長保固：AppleCare / JC安達產物 兩份 PDF，按鈕切換
-let _warrantyCur = 'applecare';
+let _warrantyCur = 'compare';
 function warrantyPick(which) {
   _warrantyCur = which;
   document.querySelectorAll('#warrantyPick .cur-chip').forEach(b =>
     b.classList.toggle('active', b.dataset.w === which));
-  ['applecare', 'jc'].forEach(c =>
+  ['compare', 'applecare', 'jc'].forEach(c =>
     document.getElementById('wblock-' + c).classList.toggle('hidden', c !== which));
-  loadDoc(which);
+  if (which !== 'compare') loadDoc(which);
 }
 
 async function loadHome() {
