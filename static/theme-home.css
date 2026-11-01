@@ -213,3 +213,16 @@ body {
 .t-green { --jelly: rgba(60,190,90,.58); background: linear-gradient(135deg, #c4f061 0%, #4fd46a 50%, #17b58a 100%); }
 @media (max-width: 1280px) { .home-tiles { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 899px) { .home-tiles { grid-template-columns: repeat(2, 1fr); } }
+
+/* ── 標題旁的「回首頁」按鈕 ── */
+.hd-home {
+  border: none; cursor: pointer; font-family: inherit; font-size: 14px; font-weight: 800; white-space: nowrap;
+  color: #fff; background: var(--violet); border-radius: 999px; padding: 8px 16px; margin-left: 6px;
+  box-shadow: 0 8px 16px rgba(122,120,255,.35), inset 0 1.5px 0 rgba(255,255,255,.5), inset 0 -2px 4px rgba(60,50,170,.2);
+}
+.hd-home:active { transform: scale(.95); }
+@media (max-width: 640px) {
+  .hd-sub, .stat-chip { display: none; }
+  .app-hd { padding: 0 12px; }
+  .hd-home { padding: 8px 14px; }
+}
