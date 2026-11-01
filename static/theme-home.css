@@ -88,3 +88,14 @@ body {
   .home-tiles { grid-template-columns: repeat(2, 1fr); }
   .home-row { grid-template-columns: 1fr; }
 }
+
+/* ── 目前活動：快速分類按鈕 ───────────────────── */
+.cur-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 4px; }
+.cur-chip {
+  border: none; cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 700;
+  color: var(--ink); background: #fff; border-radius: 999px; padding: 8px 16px;
+  box-shadow: 0 4px 10px rgba(110,100,230,.12), inset 0 -2px 4px rgba(150,150,230,.12);
+  transition: transform .12s;
+}
+.cur-chip:hover { transform: translateY(-1px); }
+.cur-chip.active { background: var(--violet); color: #fff; box-shadow: 0 6px 14px rgba(122,120,255,.35), inset 0 1.5px 0 rgba(255,255,255,.5); }

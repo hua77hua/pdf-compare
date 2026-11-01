@@ -1707,6 +1707,8 @@ async function loadCurProducts(q = '') {
   const count = document.getElementById('curCount');
   if (!box) return;
   try {
+    document.querySelectorAll('#curChips .cur-chip').forEach(b =>
+      b.classList.toggle('active', !!q && b.textContent.trim().endsWith(q)));
     const data = await (await fetch(`${API}/current-products?q=${encodeURIComponent(q)}`)).json();
     if (!data.total) {
       count.textContent = '尚無資料';
@@ -1756,6 +1758,14 @@ function renderCurProducts(rows, q) {
       ${r.activity ? `<div class="cur-act">🎁 ${esc(r.activity)}</div>` : ''}
     </div>`;
   }).join('') + `<div class="edu-reset-row"><button class="edu-reset-btn" onclick="clearCurQuery()">🔄 重新查詢</button></div>`;
+}
+
+// 快速分類：點選項直接帶入關鍵字查詢
+function curQuick(term) {
+  const q = document.getElementById('curQuery');
+  q.value = term;
+  document.getElementById('curClear').style.display = 'block';
+  loadCurProducts(term);
 }
 
 function clearCurQuery() {
