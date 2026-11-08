@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════
 //  延長保固 · 快速比較（AppleCare+ vs JC安達產物）
-//  資料來源：兩份價目表 PDF（2026.09 版）。價目更新時改下面的 WC_APPLECARE / WC_JC 即可。
+//  資料來源：兩份價目表 PDF（2026.11 版）。價目更新時改下面的 WC_APPLECARE / WC_JC 即可。
 // ═══════════════════════════════════════════════
 
 // AppleCare+：fee 專案費、yrs 保固年限、ded 意外損害自負額 [[說明, 金額]]、battery 電池原廠維修價、repair 其他損壞原廠維修價
@@ -21,15 +21,18 @@ const WC_APPLECARE = [
   { cat: 'iPad', name: 'iPad Pro 13" (M5)', fee: 5890, yrs: 2, ded: WC_IPAD_DED, battery: 6790, repair: '$38,890 ~ $40,890' },
   { cat: 'iPad', name: 'iPad Air 11" (M4)', fee: 2890, yrs: 2, ded: WC_IPAD_DED, battery: 4290, repair: '$18,290 ~ $20,490' },
   { cat: 'iPad', name: 'iPad Air 13" (M4)', fee: 3590, yrs: 2, ded: WC_IPAD_DED, battery: 4990, repair: '$23,790 ~ $25,290' },
-  { cat: 'iPad', name: 'iPad mini 7th',     fee: 2490, yrs: 2, ded: WC_IPAD_DED, battery: 3990, repair: '$14,590 ~ $16,090' },
+  { cat: 'iPad', name: 'iPad mini (A20 Pro)', fee: 2690, yrs: 2, ded: WC_IPAD_DED, battery: 3990, repair: '$17,590 ~ $19,090' },
   { cat: 'iPad', name: 'iPad (A16)',        fee: 2490, yrs: 2, ded: WC_IPAD_DED, battery: 3990, repair: '$12,890 ~ $14,590' },
   // Mac（3 年）
   { cat: 'Mac', name: 'MacBook Neo 13" (A18 Pro)', fee: 4990,  yrs: 3, ded: [['螢幕單獨損壞', 1590], ['其他損害', 4990]], battery: 4890, repair: '主機、螢幕、硬碟等依原廠報價' },
-  { cat: 'Mac', name: 'MacBook Pro 14"',   fee: 9490,  yrs: 3, ded: WC_MAC_DED, battery: 7410, repair: '主機、螢幕、硬碟等依原廠報價' },
-  { cat: 'Mac', name: 'MacBook Pro 16"',   fee: 13490, yrs: 3, ded: WC_MAC_DED, battery: 8090, repair: '主機、螢幕、硬碟等依原廠報價' },
+  { cat: 'Mac', name: 'MacBook Pro 14" (M6)',            fee: 10790, yrs: 3, ded: WC_MAC_DED, battery: 7410, repair: '主機、螢幕、硬碟等依原廠報價' },
+  { cat: 'Mac', name: 'MacBook Pro 14" (M5 Pro/Max)',    fee: 12790, yrs: 3, ded: WC_MAC_DED, battery: 7410, repair: '主機、螢幕、硬碟等依原廠報價' },
+  { cat: 'Mac', name: 'MacBook Pro 14" (PROLED XDR)',    fee: 14590, yrs: 3, ded: WC_MAC_DED, battery: 7410, repair: '主機、螢幕、硬碟等依原廠報價' },
+  { cat: 'Mac', name: 'MacBook Pro 16"',                 fee: 13490, yrs: 3, ded: WC_MAC_DED, battery: 8090, repair: '主機、螢幕、硬碟等依原廠報價' },
+  { cat: 'Mac', name: 'MacBook Pro 16" (PROLED XDR)',    fee: 17490, yrs: 3, ded: WC_MAC_DED, battery: 8090, repair: '主機、螢幕、硬碟等依原廠報價' },
   { cat: 'Mac', name: 'MacBook Air 13" (M5)', fee: 6790, yrs: 3, ded: WC_MAC_DED, battery: 5790, repair: '主機、螢幕、硬碟等依原廠報價' },
   { cat: 'Mac', name: 'MacBook Air 15" (M5)', fee: 7790, yrs: 3, ded: WC_MAC_DED, battery: 6390, repair: '主機、螢幕、硬碟等依原廠報價' },
-  { cat: 'Mac', name: 'iMac 24" (M4)',     fee: 5790,  yrs: 3, ded: WC_MAC_DED, battery: null, repair: '依原廠報價' },
+  { cat: 'Mac', name: 'iMac 24" (M6)',     fee: 6790,  yrs: 3, ded: WC_MAC_DED, battery: null, repair: '依原廠報價' },
   { cat: 'Mac', name: 'Mac mini',          fee: 3490,  yrs: 3, ded: WC_MAC_DED, battery: null, repair: '依原廠報價' },
   { cat: 'Mac', name: 'Mac Studio',        fee: 5790,  yrs: 3, ded: WC_MAC_DED, battery: null, repair: '依原廠報價' },
   { cat: 'Mac', name: 'Studio Display (2026)', fee: 4990, yrs: 3, ded: WC_MAC_DED, battery: null, repair: '依原廠報價', noJc: true },
@@ -43,8 +46,8 @@ const WC_APPLECARE = [
   { cat: 'AirPods', name: 'AirPods Pro 3', fee: 1290, yrs: 2, ded: [['意外損害', 900]], battery: null, repair: '每只 $2,690；充電盒 $2,990', jc: 'airpods' },
   { cat: 'AirPods', name: 'AirPods Max 2', fee: 1990, yrs: 2, ded: [['意外損害', 900]], battery: null, repair: '依原廠報價', jc: 'airpods' },
   { cat: 'AirPods', name: 'Beats',         fee: 990,  yrs: 2, ded: [['意外損害', 900]], battery: null, repair: '$2,690 ~ $3,390', noJc: true },
-  { cat: 'AirPods', name: 'HomePod',       fee: 1400, yrs: 2, ded: [['意外損害', 1300]], battery: null, repair: '$8,799', noJc: true },
-  { cat: 'AirPods', name: 'HomePod mini',  fee: 500,  yrs: 2, ded: [['意外損害', 500]],  battery: null, repair: '$3,189', noJc: true },
+  { cat: 'AirPods', name: 'HomePod',       fee: 1390, yrs: 2, ded: [['意外損害', 1300]], battery: null, repair: '$8,799', noJc: true },
+  { cat: 'AirPods', name: 'HomePod mini',  fee: 590,  yrs: 2, ded: [['意外損害', 500]],  battery: null, repair: '$4,190', noJc: true },
   { cat: 'AirPods', name: 'Apple TV',      fee: 720,  yrs: 3, ded: [['意外損害', 490]],  battery: null, repair: '$5,869 ~ $6,799', noJc: true },
 ];
 const WC_CATS = [['iPhone', '📱 iPhone'], ['iPad', '📲 iPad'], ['Mac', '💻 Mac'], ['Watch', '⌚ Watch'], ['AirPods', '🎧 AirPods / 音樂']];
@@ -72,8 +75,8 @@ const WC_JC = {
   airpods: WC_JC_SMALL,
   mac: [
     { lo: 0,      hi: 50000,  m: 255, y1: 2780, y2: 4990, y3: 6990,  repair: 3000, rep: 5000 },
-    { lo: 50001,  hi: 109900, m: 520, y1: 5680, y2: 9990, y3: 12490, repair: 4000, rep: 9000 },
-    { lo: 109901, hi: 119900, m: 520, y1: 5680, y2: 9900, y3: null,  repair: 4000, rep: 9000, note: '限 MBP 16"' },
+    { lo: 50001,  hi: 119900, m: 520, y1: 5680, y2: 9990, y3: 12490, repair: 4000, rep: 9000 },
+    { lo: 119901, hi: 150000, m: 740, y1: 7780, y2: 13480, y3: null, repair: 5000, rep: 10000 },
   ],
 };
 
@@ -231,7 +234,7 @@ function wcSummary(m, b, bands) {
   else tip = '依客人需求：想保費低選便宜的一家；在意竊盜、彈性年限選 JC；想官方直營服務選 AppleCare+。';
   out.push(`<span class="wc-tip">建議：${tip}</span>`);
   return '<ul>' + out.map(x => `<li>${x}</li>`).join('') + '</ul>' +
-    '<div class="wc-foot">價格依 2026.09 版價目表；原廠維修價僅供參考，以實際報價為主。</div>';
+    '<div class="wc-foot">價格依 2026.11 版價目表；原廠維修價僅供參考，以實際報價為主。</div>';
 }
 
 document.addEventListener('DOMContentLoaded', wcInit);
