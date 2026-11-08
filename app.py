@@ -6,7 +6,7 @@ import difflib
 import mimetypes
 from datetime import datetime
 
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, Response
 from flask_cors import CORS
 import pdfplumber
 from werkzeug.utils import secure_filename
@@ -351,9 +351,28 @@ def compare_tables(tables1, tables2):
     return result
 
 
+_INDEX_CACHE = {}
+
+
 @app.route('/')
 def index():
-    return send_from_directory('static', 'index.html', max_age=0)
+    # 把 all.css 內嵌進首頁 HTML,手機開頁時少一趟 CSS 請求(減少白屏)
+    static_dir = os.path.join(app.root_path, 'static')
+    html_path = os.path.join(static_dir, 'index.html')
+    css_path = os.path.join(static_dir, 'all.css')
+    try:
+        stamp = (os.path.getmtime(html_path), os.path.getmtime(css_path))
+        if _INDEX_CACHE.get('stamp') != stamp:
+            html = open(html_path, encoding='utf-8').read()
+            css = open(css_path, encoding='utf-8').read()
+            html = re.sub(r'<link rel="stylesheet" href="all\.css[^"]*">',
+                          lambda m: '<style>' + css + '</style>', html, count=1)
+            _INDEX_CACHE.update(stamp=stamp, html=html)
+        resp = Response(_INDEX_CACHE['html'], mimetype='text/html')
+        resp.headers['Cache-Control'] = 'no-cache'
+        return resp
+    except OSError:
+        return send_from_directory('static', 'index.html', max_age=0)
 
 
 @app.route('/api/upload', methods=['POST'])
