@@ -13,6 +13,8 @@ from werkzeug.utils import secure_filename
 
 app = Flask(__name__, static_folder='static', static_url_path='')
 CORS(app)
+# 靜態檔可快取一天(index.html 內以 ?v= 版本號更新);首頁本身每次重新驗證
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 86400
 
 # Allow DATA_DIR override so cloud persistent-disk mounts work
 _DATA_DIR    = os.environ.get('DATA_DIR', os.path.dirname(os.path.abspath(__file__)))
@@ -351,7 +353,7 @@ def compare_tables(tables1, tables2):
 
 @app.route('/')
 def index():
-    return send_from_directory('static', 'index.html')
+    return send_from_directory('static', 'index.html', max_age=0)
 
 
 @app.route('/api/upload', methods=['POST'])
@@ -731,6 +733,21 @@ def get_suggestions():
 #  SINGLE-LATEST-PDF BOARDS  (教育價活動 / 貨號表)
 #  Each category keeps exactly one PDF; a new upload replaces the old one.
 # ═══════════════════════════════════════════════════════════════════════════
+@app.route('/api/docs-summary', methods=['GET'])
+def docs_summary():
+    # 首頁一次取得所有看板的檔案資訊,省下多次請求
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute('SELECT category, orig_name, stored_name, upload_time FROM single_docs').fetchall()
+    conn.close()
+    out = {c: {'exists': False} for c in DOC_CATEGORIES}
+    for r in rows:
+        kind = 'image' if r['stored_name'].lower().endswith(IMAGE_EXTS) else 'pdf'
+        out[r['category']] = {'exists': True, 'name': r['orig_name'],
+                              'upload_time': r['upload_time'], 'kind': kind}
+    return jsonify(out)
+
+
 @app.route('/api/docs/<category>', methods=['GET'])
 def get_doc(category):
     if category not in DOC_CATEGORIES:

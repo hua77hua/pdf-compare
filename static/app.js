@@ -1243,8 +1243,8 @@ function warrantyPick(which) {
 async function loadHome() {
   const cats = [['current', '目前活動'], ['edu', '教育價貨號'], ['sku', '貨號表'],
                 ['applecare', 'AppleCare'], ['jc', 'JC安達產物'], ['epboxprice', 'EPBox期間價格']];
-  const metas = await Promise.all(cats.map(([c]) =>
-    fetch(`${API}/docs/${c}`).then(r => r.json()).catch(() => null)));
+  const all = await fetch(`${API}/docs-summary`).then(r => r.json()).catch(() => ({}));
+  const metas = cats.map(([c]) => all[c] || null);
   const rows = [];
   cats.forEach(([c, label], i) => {
     const m = metas[i];
@@ -1318,10 +1318,31 @@ function renderDoc(cat, meta) {
   }
 }
 
+// pdf.js 只在第一次預覽 PDF 時才載入，不擋住首頁
+let _pdfJsPromise = null;
+function loadPdfJs() {
+  if (window.pdfjsLib) return Promise.resolve();
+  if (!_pdfJsPromise) {
+    const base = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+    _pdfJsPromise = new Promise((resolve, reject) => {
+      const el = document.createElement('script');
+      el.src = base + 'pdf.min.js';
+      el.onload = () => {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = base + 'pdf.worker.min.js';
+        resolve();
+      };
+      el.onerror = () => { _pdfJsPromise = null; reject(new Error('pdfjs unavailable')); };
+      document.head.appendChild(el);
+    });
+  }
+  return _pdfJsPromise;
+}
+
 // PDF.js scrollable, lazy-rendered viewer — works on phones, tablets and desktop
 async function renderPdf(cat, url) {
   const scroll = document.getElementById(cat + 'Scroll');
-  if (!scroll || !window.pdfjsLib) throw new Error('pdfjs unavailable');
+  if (!scroll) throw new Error('pdfjs unavailable');
+  await loadPdfJs();
 
   const pdf = await pdfjsLib.getDocument({ url }).promise;
   scroll.innerHTML = '';
