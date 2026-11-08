@@ -5,10 +5,12 @@
 
 // AppleCare+：fee 專案費、yrs 保固年限、ded 意外損害自負額 [[說明, 金額]]、battery 電池原廠維修價、repair 其他損壞原廠維修價
 const WC_IPHONE_DED = [['螢幕或背面玻璃', 900], ['其他損害', 3200]];
+const WC_DUO_DED    = [['內螢幕保護層', 690], ['表層損壞', 1700], ['外螢幕或機背玻璃', 900], ['內螢幕維修或其他損壞', 3200]];
 const WC_IPAD_DED   = [['僅螢幕', 900], ['iPad 其他損害', 3200], ['Apple Pencil 與鍵盤', 900]];
 const WC_MAC_DED    = [['螢幕單獨損壞', 3200], ['其他損害', 9600]];
 const WC_APPLECARE = [
   // iPhone（2 年）
+  { cat: 'iPhone', name: 'iPhone Duo',        fee: 10490, yrs: 2, ded: WC_DUO_DED, battery: 7950, repair: '其他損壞 $7,390 ~ $56,190；機背玻璃維修 $6,290' },
   { cat: 'iPhone', name: 'iPhone 18 Pro Max', fee: 6990, yrs: 2, ded: WC_IPHONE_DED, battery: 4490, repair: '$12,290 ~ $32,690' },
   { cat: 'iPhone', name: 'iPhone 18 Pro',     fee: 6990, yrs: 2, ded: WC_IPHONE_DED, battery: 4490, repair: '$10,790 ~ $31,190' },
   { cat: 'iPhone', name: 'iPhone Air',        fee: 6990, yrs: 2, ded: WC_IPHONE_DED, battery: 4150, repair: '$10,790 ~ $26,390' },
@@ -63,6 +65,7 @@ const WC_JC = {
     { lo: 35001, hi: 55000, m: 358, y1: 4290, y2: 7720,  y3: 11580, rep: 4500 },
     { lo: 55001, hi: 70000, m: 458, y1: 5490, y2: 9880,  y3: 14820, rep: 5500 },
     { lo: 70001, hi: 95000, m: 548, y1: 5900, y2: 11800, y3: 17600, rep: 7000 },
+    { lo: 95001, hi: 120000, m: 648, y1: 7680, y2: 13580, y3: 21380, rep: 7000 },
   ],
   ipad: WC_JC_SMALL,
   watch: WC_JC_SMALL,
