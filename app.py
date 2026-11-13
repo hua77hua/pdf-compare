@@ -508,6 +508,15 @@ def index():
         return send_from_directory('static', 'index.html', max_age=0)
 
 
+@app.route('/sw.js')
+def service_worker():
+    """Service Worker 必須從根網址提供才能管到整個網站；每次都向伺服器確認有沒有新版。"""
+    resp = send_from_directory('static', 'sw.js', mimetype='application/javascript', max_age=0)
+    resp.headers['Cache-Control'] = 'no-cache'
+    resp.headers['Service-Worker-Allowed'] = '/'
+    return resp
+
+
 @app.route('/api/upload', methods=['POST'])
 def upload():
     if 'file' not in request.files:

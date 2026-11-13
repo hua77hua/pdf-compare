@@ -408,5 +408,17 @@
 <div id="toast" class="toast"></div>
 <script src="app.js?v=20261114b"></script>
 <script src="warranty.js?v=20261114c"></script>
+<script>
+// 離線快取：第二次起秒開；有新版時自動重新載入一次
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(() => {}));
+  navigator.serviceWorker.addEventListener('message', e => {
+    if (e.data === 'updated' && !sessionStorage.getItem('swReloaded')) {
+      sessionStorage.setItem('swReloaded', '1');
+      location.reload();
+    }
+  });
+}
+</script>
 </body>
 </html>
