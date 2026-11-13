@@ -1354,11 +1354,21 @@ def sku_products():
     tokens = [_sku_norm(t) for t in q2.split() if t.strip()]
     if not tokens:
         return jsonify({'total': len(rows), 'rows': []})
+    import unicodedata
+    short = {t: re.compile(r'(?<![\d.])' + t + r'(?:\.\d+)?(?!\d|\s?(?:CPU|GPU|GB|TB|W|kg|g)\b)', re.I)
+             for t in tokens if t.isdigit() and len(t) <= 2}
+
     def ok(d):
-        text = _sku_norm(' '.join([d['name'], d['cat']]))
+        raw = unicodedata.normalize('NFKC', d['name'] + ' ' + d['cat'])
+        text = _sku_norm(raw)
         full = text + _sku_norm(d['mpn'] + d['code'])
-        # 短數字(13、14…)只比對品名，避免撞到貨號/型號裡的數字
-        return all(t in (text if t.isdigit() and len(t) <= 3 else full) for t in tokens)
+        for t in tokens:
+            if t in short:        # 13、14 這類尺寸/代數：必須是獨立數字，不能是 14CPU、70W 或貨號的一部分
+                if not short[t].search(raw):
+                    return False
+            elif t not in (text if t.isdigit() and len(t) <= 3 else full):
+                return False
+        return True
     hits = [d for d in rows if ok(d)]
     return jsonify({'total': len(rows), 'rows': hits[:400], 'count': len(hits)})
 
