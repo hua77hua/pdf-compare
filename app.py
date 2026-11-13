@@ -1348,11 +1348,18 @@ def sku_products():
         conn.row_factory = sqlite3.Row
         rows = [dict(r) for r in conn.execute(sql).fetchall()]
         conn.close()
-    tokens = [_sku_norm(t) for t in q.split() if t.strip()]
+    # 貨號表寫 MBA/MBP，使用者常打 MacBook Air/Pro；「吋」也忽略
+    q2 = re.sub(r'macbook\s*air', 'MBA', q, flags=re.I)
+    q2 = re.sub(r'macbook\s*pro', 'MBP', q2, flags=re.I).replace('吋', '')
+    tokens = [_sku_norm(t) for t in q2.split() if t.strip()]
     if not tokens:
         return jsonify({'total': len(rows), 'rows': []})
-    hits = [d for d in rows
-            if all(t in _sku_norm(' '.join([d['name'], d['cat'], d['mpn'], d['code']])) for t in tokens)]
+    def ok(d):
+        text = _sku_norm(' '.join([d['name'], d['cat']]))
+        full = text + _sku_norm(d['mpn'] + d['code'])
+        # 短數字(13、14…)只比對品名，避免撞到貨號/型號裡的數字
+        return all(t in (text if t.isdigit() and len(t) <= 3 else full) for t in tokens)
+    hits = [d for d in rows if ok(d)]
     return jsonify({'total': len(rows), 'rows': hits[:400], 'count': len(hits)})
 
 
