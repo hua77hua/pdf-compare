@@ -1471,7 +1471,8 @@ async function loadSkuProducts(q = '') {
       <div class="sku-group-hd">${esc(name)}</div>
       ${[...subs.values()].map(s => `<div class="sku-line">
         <div class="sku-line-hd"><span class="sku-sub">${esc(s.sub) || ''}</span>
-          <span class="sku-price">${s.price ? '$' + esc(s.price) : ''}</span></div>
+          <span class="sku-price">${s.price ? (/^[\d,]+$/.test(s.price) ? '$' : '') + esc(s.price) : ''}</span></div>
+        ${(() => { const e = s.items.find(r => r.edu_code); return e ? `<div class="sku-edu">🎓 教育價 ${e.edu_price ? '$' + esc(e.edu_price) : ''}${e.edu_disc ? ' · 折 ' + esc(String(e.edu_disc).replace('-', '')) : ''} · 教育貨號 <b>${esc(e.edu_code)}</b></div>` : ''; })()}
         <div class="sku-chips">${s.items.map(r => `<button class="sku-chip" onclick="copySku('${esc(r.code)}')">
           <span class="sku-color">${esc(r.color || r.mpn || '')}</span>
           <b class="sku-code">${esc(r.code)}</b></button>`).join('')}</div>

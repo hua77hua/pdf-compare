@@ -974,3 +974,5 @@ mark.edu-hit { background: #fde68a; color: inherit; border-radius: 3px; padding:
 .sku-chip:active{background:#eef4ff}
 .sku-color{font-size:12px;color:#666}
 .sku-code{font-size:16px;color:#0a58ca;letter-spacing:.5px}
+.sku-edu{font-size:13px;color:#b45309;background:#fff7ed;border-radius:8px;padding:4px 8px;margin-bottom:6px}
+.sku-edu b{font-size:15px;letter-spacing:.5px}

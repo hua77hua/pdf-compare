@@ -85,12 +85,16 @@ def init_db():
             cat   TEXT DEFAULT '',
             grp   TEXT DEFAULT '',
             sub   TEXT DEFAULT '',
-            color TEXT DEFAULT ''
+            color TEXT DEFAULT '',
+            edu_price TEXT DEFAULT '',
+            edu_disc  TEXT DEFAULT '',
+            edu_code  TEXT DEFAULT ''
         )
     ''')
-    for c in ('grp', 'sub', 'color'):      # 舊資料庫補欄位
+    for c in ('grp', 'sub', 'color', 'edu_price', 'edu_disc', 'edu_code'):      # 舊資料庫補欄位
         if c not in [r[1] for r in conn.execute("PRAGMA table_info(sku_products)")]:
             conn.execute(f"ALTER TABLE sku_products ADD COLUMN {c} TEXT DEFAULT ''")
+            conn.execute("UPDATE sku_products SET grp = ''")   # 讓查詢時用目前 PDF 自動重建一次
     # 目前活動查詢清單：分類 / 貨號 / 品名 / 型號 / 原會員價 / 會員價 / 折讓額 / 促銷價 / 活動
     conn.execute('''
         CREATE TABLE IF NOT EXISTS cur_products (
@@ -265,49 +269,74 @@ def extract_bts_products(filepath):
 
 
 def extract_sku_products(filepath):
-    """Parse the 貨號一覽表 PDF into rows of (品名, 貨號, 型號, 價格).
+    """Parse the 貨號一覽表 PDF into rows of
+    (品名, 貨號, 型號, 價格, 類別, 分組, 規格, 顏色, 教育價, 折抵, 教育貨號).
 
-    The sheet is many small tables (one per product family), each with a 貨號 header.
-    Cells left of 貨號 (類別/容量/顏色/規格) are merged, so empty ones inherit the
-    value above. 品名 = table title (e.g. "iPhone 18 Pro Max 6.9”") or 類別 cell, plus
-    the inherited 容量/規格 and the colour. Text is NFKC-normalised (⿊→黑)."""
+    The sheet is many small tables (one per product family). Cells left of 貨號
+    (類別/容量/顏色/規格) are merged, so empty ones inherit the value above.
+    分組 = table title (e.g. "iPhone 18 Pro Max 6.9”") or 類別 cell. Tables without a
+    貨號 header (AirPods, HomePod…) are detected by the column full of 5-7 digit codes.
+    Mac tables carry 教育優惠 columns (教育價 / 折抵金額 / 使用貨號); the 大專教育優惠
+    tables (iPad / Watch: 品名 / 折扣額 / 貨號) become rows whose 價格 is the 折扣額.
+    Text is NFKC-normalised (⿊→黑)."""
     import unicodedata
 
     def cl(c):
         return unicodedata.normalize('NFKC', str(c)).strip() if c else ''
 
+    code_re = re.compile(r'\d{5,7}')
     out = []
     with pdfplumber.open(filepath) as pdf:
         for pg in pdf.pages:
             for t in (pg.extract_tables() or []):
                 hi = next((i for i, r in enumerate(t) if '貨號' in [cl(c) for c in r]), None)
-                if hi is None:
-                    continue
-                head = [cl(c) for c in t[hi]]
-                ci = head.index('貨號')
-                mi = next((i for i, c in enumerate(head) if '型號' in c), -1)
-                pi = next((i for i, c in enumerate(head) if '單價' in c or '售價' in c), -1)
+                if hi is not None:
+                    head = [cl(c) for c in t[hi]]
+                    ci = head.index('貨號')
+                    start = hi + 1
+                else:                                   # 沒表頭：找「幾乎都是貨號」的那一欄
+                    width = max((len(r) for r in t), default=0)
+                    counts = [sum(1 for r in t if k < len(r) and code_re.fullmatch(cl(r[k])))
+                              for k in range(width)]
+                    if not counts or max(counts) < 2:
+                        continue                        # 跨頁殘片(如只有一格)
+                    ci, start, hi = counts.index(max(counts)), 0, 0
+                    head = [''] * (ci + 3)
+                mi = next((i for i, c in enumerate(head) if '型號' in c), ci + 1 if not any(head) else -1)
+                pi = next((i for i, c in enumerate(head) if '單價' in c or '售價' in c), ci + 2 if not any(head) else -1)
                 col = next((i for i, c in enumerate(head[:ci]) if '顏' in c), -1)
                 if col < 0:
                     col = next((i for i, c in enumerate(head[:ci]) if c == '規格'), -1)
+                di = next((i for i, c in enumerate(head) if '折扣額' in c), -1)     # 大專教育優惠表
+                # 教育優惠欄位（表頭可能在下一列）
+                hdr_rows = [[cl(c) for c in r] for r in t[:start + 2]]
+                def find(word):
+                    for hr in hdr_rows:
+                        for k, c in enumerate(hr):
+                            if word in c:
+                                return k
+                    return -1
+                e_price, e_disc, e_code = find('教育價'), find('折抵'), find('使用貨號')
                 title = ''
-                for r in t[:hi]:
+                for r in t[:max(hi, 1)]:
                     cs = [cl(c) for c in r]
-                    if cs and cs[0] and not any(cs[1:]):
+                    if cs and cs[0] and not any(cs[1:]) and not code_re.fullmatch(cs[0]):
                         title = re.sub(r'\s+', ' ', cs[0])
                 carry = [''] * ci
-                price = ''
-                prev = []                      # rows of this table: [carry-list snapshot, out index]
-                for r in t[hi + 1:]:
+                price = ep = ed = ec = ''
+                for r in t[start:]:
                     if ci >= len(r):
                         continue
                     code = cl(r[ci])
-                    if not re.fullmatch(r'\d{5,7}', code):
+                    if not code_re.fullmatch(code):
                         continue
+                    new_group = False
                     for k in range(ci):
                         raw = cl(r[k]) if k < len(r) else ''
-                        if not raw:
+                        if k == di or not raw:
                             continue
+                        if k > 0 and k != col:
+                            new_group = True
                         if '\n' in raw:
                             first, _, rest = raw.partition('\n')
                             # colour wrapped over two lines: 勃根地 / 紅 → previous row owns the 紅
@@ -315,20 +344,29 @@ def extract_sku_products(filepath):
                                 out[-1][4][k] += first
                                 raw = rest
                         carry[k] = raw if k == 0 else re.sub(r'\s*\n\s*', ' ', raw)
-                    if pi >= 0 and pi < len(r) and cl(r[pi]):
-                        price = cl(r[pi])
-                    mpn = cl(r[mi]) if 0 <= mi < len(r) else ''
-                    out.append([col, code, mpn, price, list(carry), title])
+                    g = lambda k: cl(r[k]) if 0 <= k < len(r) else ''
+                    if di >= 0:
+                        price = g(di)                   # 折 1610元
+                    elif g(pi):
+                        price = g(pi)
+                    if e_price >= 0:
+                        if g(e_price):
+                            ep = g(e_price)
+                            ed, ec = g(e_disc) or ed, g(e_code) or ec
+                        elif new_group:
+                            ep = ed = ec = ''
+                    out.append([col, code, g(mi), price, list(carry), title, ep, ed, ec])
     rows = []
-    for col, code, mpn, price, cells, title in out:
+    for col, code, mpn, price, cells, title, ep, ed, ec in out:
         cat = re.sub(r'\s*\n\s*', ' ', cells[0]) if cells else ''
         head = title or cat
+        extra = ''
         if title and cat and ' '.join(cat.split()[:2]) not in title:
-            head = title + ' ' + cat              # 配件表: 標題 + 品項(類別)
+            extra = cat                           # 配件表: 分組=標題，品項(類別)放到規格欄
         color = cells[col] if 0 < col < len(cells) else ''
-        sub = ' '.join(x for k, x in enumerate(cells) if k > 0 and k != col and x)
-        name = ' '.join(x for x in [head] + cells[1:] if x)
-        rows.append((name, code, mpn, price, cat, head, sub, color))
+        sub = ' '.join(x for x in [extra] + [c for k, c in enumerate(cells) if k > 0 and k != col] if x)
+        name = ' '.join(x for x in [head, extra] + cells[1:] if x)
+        rows.append((name, code, mpn, price, cat, head, sub, color, ep, ed, ec))
     return rows
 
 
@@ -1323,15 +1361,15 @@ def _save_sku_products(rows):
     conn = sqlite3.connect(DB_PATH)
     conn.execute('DELETE FROM sku_products')
     conn.executemany(
-        'INSERT INTO sku_products (name, code, mpn, price, cat, grp, sub, color) '
-        'VALUES (?, ?, ?, ?, ?, ?, ?, ?)', rows)
+        'INSERT INTO sku_products (name, code, mpn, price, cat, grp, sub, color, edu_price, edu_disc, edu_code) '
+        'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', rows)
     conn.commit()
     conn.close()
 
 
 def _sku_norm(s):
     import unicodedata
-    return re.sub(r'[\s\-]+', '', unicodedata.normalize('NFKC', str(s or ''))).lower()
+    return re.sub(r'[\s\-]+', '', unicodedata.normalize('NFKC', str(s or ''))).replace('殼', '殻').lower()   # 殼/殻 視為同字
 
 
 @app.route('/api/sku-products', methods=['GET'])
@@ -1339,10 +1377,10 @@ def sku_products():
     q = request.args.get('q', '').strip()
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    sql = 'SELECT name, code, mpn, price, cat, grp, sub, color FROM sku_products ORDER BY id'
+    sql = 'SELECT name, code, mpn, price, cat, grp, sub, color, edu_price, edu_disc, edu_code FROM sku_products ORDER BY id'
     rows = [dict(r) for r in conn.execute(sql).fetchall()]
     conn.close()
-    if rows and not rows[0]['grp']:          # 舊版清單(沒有分組欄位) → 用目前 PDF 自動重建一次
+    if rows and not rows[0]['grp']:          # 舊版清單(欄位剛補上) → 用目前 PDF 自動重建一次
         sku_products_rebuild()
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
@@ -1360,8 +1398,10 @@ def sku_products():
 
     def ok(d):
         raw = unicodedata.normalize('NFKC', d['name'] + ' ' + d['cat'])
+        if re.match(r'(Series|Ultra)', d['grp']):
+            raw = 'Apple Watch ' + raw       # 錶款表格標題沒寫 Apple Watch
         text = _sku_norm(raw)
-        full = text + _sku_norm(d['mpn'] + d['code'])
+        full = text + _sku_norm(d['mpn'] + d['code'] + d.get('edu_code', ''))
         for t in tokens:
             if t in short:        # 13、14 這類尺寸/代數：必須是獨立數字，不能是 14CPU、70W 或貨號的一部分
                 if not short[t].search(raw):
