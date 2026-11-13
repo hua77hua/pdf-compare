@@ -1420,6 +1420,7 @@ def warranty_data():
                      'source': d['source']} if d else None
         # 該分類有上傳檔，但之後沒有成功解析出價格（圖片、或截圖轉成的 PDF）→ 提醒價格不是最新
         out[kind + '_stale'] = bool(doc and (not d or doc['upload_time'] > d['updated']))
+        out[kind + '_doc_time'] = doc['upload_time'] if doc else ''
     return jsonify(out)
 
 

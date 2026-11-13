@@ -82,14 +82,18 @@ let WC_JC = {
 
 const wcState = { cat: 'iPhone', model: null, band: null };
 // 網站上傳 AppleCare+/JC 的 PDF 後，伺服器會解析出最新價格；沒有就用上面內建的 2026.11 版
+const WC_BUILTIN_AT = '2026-11-13T17:20:00';   // 內建價格最後人工更新時間（UTC）：2026-11-14 AP.pdf 核對
 let wcInfo = { ac: '2026.11', jc: '2026.11', staleAc: false, staleJc: false };
 async function wcLoadData() {
   try {
     const d = await (await fetch(`${API}/warranty-data`)).json();
     const keep = wcState.model && wcState.model.name;
-    if (d.ac) { WC_APPLECARE = d.ac.data; wcInfo.ac = d.ac.version || '最新上傳'; }
-    if (d.jc) { WC_JC = d.jc.data; wcInfo.jc = d.jc.version || '最新上傳'; }
-    wcInfo.staleAc = !!d.ac_stale; wcInfo.staleJc = !!d.jc_stale;
+    // 內建價格是人工核對過的；比內建更新的上傳才會蓋掉它（伺服器時間為 UTC）
+    const fresh = x => x && x.updated > WC_BUILTIN_AT;
+    if (fresh(d.ac)) { WC_APPLECARE = d.ac.data; wcInfo.ac = d.ac.version || '最新上傳'; }
+    if (fresh(d.jc)) { WC_JC = d.jc.data; wcInfo.jc = d.jc.version || '最新上傳'; }
+    wcInfo.staleAc = !!d.ac_stale && !fresh(d.ac) && (d.ac_doc_time || '') > WC_BUILTIN_AT;
+    wcInfo.staleJc = !!d.jc_stale && !fresh(d.jc) && (d.jc_doc_time || '') > WC_BUILTIN_AT;
     wcState.model = WC_APPLECARE.find(m => m.name === keep) || null;
     wcState.band = null;
     if (document.getElementById('wcCats')) {
