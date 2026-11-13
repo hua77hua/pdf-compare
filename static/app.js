@@ -1404,13 +1404,15 @@ function wireDrop(cat) {
 
 async function uploadDoc(cat, file) {
   const imgOk = ['applecare', 'jc', 'epboxprice'].includes(cat);
-  if (!/\.pdf$/i.test(file.name) && !(imgOk && /\.(jpe?g|png)$/i.test(file.name))) {
+  const looksPdf = /\.pdf$/i.test(file.name) || file.type === 'application/pdf';
+  const looksImg = /\.(jpe?g|png)$/i.test(file.name) || /^image\/(jpeg|png)$/.test(file.type);
+  if (!looksPdf && !(imgOk && looksImg) && /\.[A-Za-z0-9]{1,5}$/.test(file.name)) {
     toast(imgOk ? '請選擇 PDF 或 JPG/PNG 檔案' : '請選擇 PDF 格式的文件', 'error'); return;
   }
   const body = document.getElementById(cat + 'Body');
   body.innerHTML = `<div class="doc-uploading"><div class="spin"></div><div>上傳中，請稍候…</div></div>`;
   try {
-    const fd = new FormData(); fd.append('file', file);
+    const fd = new FormData(); fd.append('file', file, looksPdf && !/\.pdf$/i.test(file.name) ? file.name + '.pdf' : file.name);
     const res  = await fetch(`${API}/docs/${cat}`, { method: 'POST', body: fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || '上傳失敗');

@@ -924,6 +924,12 @@ def upload_doc(category):
 
     file = request.files['file']
     ext = os.path.splitext(file.filename.lower())[1]
+    head = file.stream.read(8)
+    file.stream.seek(0)
+    if head.startswith(b'%PDF'):              # 檔名沒有 .pdf（LINE/郵件存檔常見）就看檔案內容判斷
+        ext = '.pdf'
+    elif ext not in ('.pdf',) + IMAGE_EXTS:
+        ext = '.jpg' if head.startswith(b'\xff\xd8') else '.png' if head.startswith(b'\x89PNG') else ext
     allowed = ('.pdf',) + (IMAGE_EXTS if category in IMAGE_OK_CATEGORIES else ())
     if ext not in allowed:
         return jsonify({'error': '只支援 PDF 或 JPG/PNG 圖片' if category in IMAGE_OK_CATEGORIES
