@@ -74,6 +74,17 @@ def init_db():
             kind         TEXT DEFAULT 'device'
         )
     ''')
+    # 貨號表查詢清單：品名(含容量/顏色) / 貨號 / 型號 / 價格
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS sku_products (
+            id    INTEGER PRIMARY KEY AUTOINCREMENT,
+            name  TEXT DEFAULT '',
+            code  TEXT DEFAULT '',
+            mpn   TEXT DEFAULT '',
+            price TEXT DEFAULT '',
+            cat   TEXT DEFAULT ''
+        )
+    ''')
     # 目前活動查詢清單：分類 / 貨號 / 品名 / 型號 / 原會員價 / 會員價 / 折讓額 / 促銷價 / 活動
     conn.execute('''
         CREATE TABLE IF NOT EXISTS cur_products (
@@ -245,6 +256,69 @@ def extract_bts_products(filepath):
                     out.append((row_grp, code, name, g('model'),
                                 g('member'), g('disc'), g('promo'), row_act, kind))
     return out
+
+
+def extract_sku_products(filepath):
+    """Parse the 貨號一覽表 PDF into rows of (品名, 貨號, 型號, 價格).
+
+    The sheet is many small tables (one per product family), each with a 貨號 header.
+    Cells left of 貨號 (類別/容量/顏色/規格) are merged, so empty ones inherit the
+    value above. 品名 = table title (e.g. "iPhone 18 Pro Max 6.9”") or 類別 cell, plus
+    the inherited 容量/規格 and the colour. Text is NFKC-normalised (⿊→黑)."""
+    import unicodedata
+
+    def cl(c):
+        return unicodedata.normalize('NFKC', str(c)).strip() if c else ''
+
+    out = []
+    with pdfplumber.open(filepath) as pdf:
+        for pg in pdf.pages:
+            for t in (pg.extract_tables() or []):
+                hi = next((i for i, r in enumerate(t) if '貨號' in [cl(c) for c in r]), None)
+                if hi is None:
+                    continue
+                head = [cl(c) for c in t[hi]]
+                ci = head.index('貨號')
+                mi = next((i for i, c in enumerate(head) if '型號' in c), -1)
+                pi = next((i for i, c in enumerate(head) if '單價' in c or '售價' in c), -1)
+                title = ''
+                for r in t[:hi]:
+                    cs = [cl(c) for c in r]
+                    if cs and cs[0] and not any(cs[1:]):
+                        title = re.sub(r'\s+', ' ', cs[0])
+                carry = [''] * ci
+                price = ''
+                prev = []                      # rows of this table: [carry-list snapshot, out index]
+                for r in t[hi + 1:]:
+                    if ci >= len(r):
+                        continue
+                    code = cl(r[ci])
+                    if not re.fullmatch(r'\d{5,7}', code):
+                        continue
+                    for k in range(ci):
+                        raw = cl(r[k]) if k < len(r) else ''
+                        if not raw:
+                            continue
+                        if '\n' in raw:
+                            first, _, rest = raw.partition('\n')
+                            # colour wrapped over two lines: 勃根地 / 紅 → previous row owns the 紅
+                            if len(first) == 1 and out and out[-1][4][k].endswith('勃根地'):
+                                out[-1][4][k] += first
+                                raw = rest
+                        carry[k] = raw if k == 0 else re.sub(r'\s*\n\s*', ' ', raw)
+                    if pi >= 0 and pi < len(r) and cl(r[pi]):
+                        price = cl(r[pi])
+                    mpn = cl(r[mi]) if 0 <= mi < len(r) else ''
+                    out.append([None, code, mpn, price, list(carry), title])
+    rows = []
+    for _, code, mpn, price, cells, title in out:
+        cat = re.sub(r'\s*\n\s*', ' ', cells[0]) if cells else ''
+        head = title or cat
+        if title and cat and ' '.join(cat.split()[:2]) not in title:
+            head = title + ' ' + cat              # 配件表: 標題 + 品項(類別)
+        name = ' '.join(x for x in [head] + cells[1:] if x)
+        rows.append((name, code, mpn, price, cat))
+    return rows
 
 
 def extract_current_products(filepath):
@@ -863,6 +937,16 @@ def upload_doc(category):
             conn.close()
         parsed = len(rows)
 
+    # 貨號表 PDF：自動解析，建立可搜尋清單（解析不到就保留舊清單）
+    elif category == 'sku':
+        try:
+            rows = extract_sku_products(filepath)
+        except Exception:
+            rows = []
+        if rows:
+            _save_sku_products(rows)
+        parsed = len(rows)
+
     resp = {'message': '上傳成功', 'name': file.filename}
     if parsed is not None:
         resp['parsed'] = parsed
@@ -1221,6 +1305,52 @@ def bts_products_rebuild():
     )
     conn.commit()
     conn.close()
+    return jsonify({'count': len(rows), 'message': f'已建立 {len(rows)} 筆'})
+
+
+def _save_sku_products(rows):
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute('DELETE FROM sku_products')
+    conn.executemany(
+        'INSERT INTO sku_products (name, code, mpn, price, cat) VALUES (?, ?, ?, ?, ?)', rows)
+    conn.commit()
+    conn.close()
+
+
+def _sku_norm(s):
+    import unicodedata
+    return re.sub(r'[\s\-]+', '', unicodedata.normalize('NFKC', str(s or ''))).lower()
+
+
+@app.route('/api/sku-products', methods=['GET'])
+def sku_products():
+    q = request.args.get('q', '').strip()
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    rows = [dict(r) for r in conn.execute(
+        'SELECT name, code, mpn, price, cat FROM sku_products ORDER BY id').fetchall()]
+    conn.close()
+    tokens = [_sku_norm(t) for t in q.split() if t.strip()]
+    if not tokens:
+        return jsonify({'total': len(rows), 'rows': []})
+    hits = [d for d in rows
+            if all(t in _sku_norm(' '.join([d['name'], d['cat'], d['mpn'], d['code']])) for t in tokens)]
+    return jsonify({'total': len(rows), 'rows': hits[:300], 'count': len(hits)})
+
+
+@app.route('/api/sku-products/rebuild', methods=['POST'])
+def sku_products_rebuild():
+    """用伺服器上目前的貨號表 PDF 重新建立查詢清單（不需重新上傳）。"""
+    conn = sqlite3.connect(DB_PATH)
+    row = conn.execute("SELECT stored_name FROM single_docs WHERE category = 'sku'").fetchone()
+    conn.close()
+    if not row or not os.path.exists(os.path.join(UPLOAD_FOLDER, row[0])):
+        return jsonify({'error': '尚未上傳貨號表 PDF'}), 404
+    try:
+        rows = extract_sku_products(os.path.join(UPLOAD_FOLDER, row[0]))
+    except Exception as e:
+        return jsonify({'error': f'解析失敗: {e}'}), 500
+    _save_sku_products(rows)
     return jsonify({'count': len(rows), 'message': f'已建立 {len(rows)} 筆'})
 
 

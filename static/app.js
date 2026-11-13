@@ -1180,6 +1180,14 @@ document.addEventListener('DOMContentLoaded', () => {
     q.addEventListener('click', resetOnTap);
   }
 
+  const sq = document.getElementById('skuQuery');
+  if (sq) {
+    sq.addEventListener('input', debounce(() => {
+      document.getElementById('skuClear').style.display = sq.value ? 'block' : 'none';
+      loadSkuProducts(sq.value.trim());
+    }, 220));
+  }
+
   const cq = document.getElementById('curQuery');
   if (cq) {
     cq.addEventListener('input', debounce(() => {
@@ -1224,7 +1232,7 @@ function switchView(view) {
   if (view === 'home') loadHome();
   if (view === 'current') { loadDoc('current'); loadCurProducts(document.getElementById('curQuery').value.trim()); }
   if (view === 'edu') { loadDoc('edu'); loadEduProducts(document.getElementById('eduQuery').value.trim()); }
-  if (view === 'sku') { loadDoc('sku'); }
+  if (view === 'sku') { loadDoc('sku'); loadSkuProducts(document.getElementById('skuQuery').value.trim()); }
   if (view === 'warranty') warrantyPick(_warrantyCur);
   if (view === 'epbox') loadDoc('epboxprice');
 }
@@ -1414,6 +1422,10 @@ async function uploadDoc(cat, file) {
       toast(data.parsed ? `上傳成功！已自動建立 ${data.parsed} 筆活動查詢資料`
                         : '上傳成功！但這份 PDF 解析不到商品表格，查詢清單維持舊資料', data.parsed ? 'success' : 'info');
       loadCurProducts(document.getElementById('curQuery').value.trim());
+    } else if (cat === 'sku' && typeof data.parsed === 'number') {
+      toast(data.parsed ? `上傳成功！已自動建立 ${data.parsed} 筆貨號查詢資料`
+                        : '上傳成功！但這份 PDF 解析不到貨號表格，查詢清單維持舊資料', data.parsed ? 'success' : 'info');
+      loadSkuProducts(document.getElementById('skuQuery').value.trim());
     } else if (cat === 'bts' && typeof data.parsed === 'number') {
       toast(`上傳成功！已自動建立 ${data.parsed} 筆 BTS 查詢資料`, 'success');
       loadBtsProducts(document.getElementById('btsQuery').value.trim());
@@ -1424,6 +1436,62 @@ async function uploadDoc(cat, file) {
     toast('上傳失敗：' + e.message, 'error');
   }
   loadDoc(cat);
+}
+
+// ── 貨號查詢（貨號表 PDF）────────────────────────
+async function loadSkuProducts(q = '') {
+  const box = document.getElementById('skuResults');
+  const count = document.getElementById('skuCount');
+  try {
+    const d = await (await fetch(`${API}/sku-products?q=${encodeURIComponent(q)}`)).json();
+    if (!q) {
+      count.textContent = d.total ? '輸入品名、顏色、容量或型號' : '尚無資料';
+      box.innerHTML = d.total ? '' : `<div class="edu-empty"><div class="edu-empty-ico">📄</div>
+        <div class="edu-empty-title">目前沒有查詢資料</div>
+        <div class="edu-empty-desc">已上傳 PDF 的話，點下方按鈕建立查詢清單；<br>或在下方上傳新的貨號表 PDF（會自動建立）</div>
+        <button class="doc-drop-btn" onclick="rebuildSku()">🔄 從目前 PDF 建立清單</button></div>`;
+      return;
+    }
+    if (!d.rows.length) {
+      count.textContent = '查無資料';
+      box.innerHTML = `<div class="edu-empty"><div class="edu-empty-ico">🔍</div>
+        <div class="edu-empty-title">查無「${esc(q)}」的資料</div>
+        <div class="edu-empty-desc">換個關鍵字試試（例：少打幾個字）</div></div>`;
+      return;
+    }
+    count.textContent = `找到 ${d.count} 筆`;
+    box.innerHTML = `<div class="edu-tbl-wrap"><table class="edu-tbl">
+      <thead><tr><th>品名</th><th>貨號</th><th>型號</th><th>價格</th></tr></thead>
+      <tbody>${d.rows.map(r => `<tr>
+        <td class="edu-name">${esc(r.name)}</td>
+        <td class="edu-code"><b>${esc(r.code)}</b></td>
+        <td>${esc(r.mpn) || '—'}</td>
+        <td>${r.price ? '$' + esc(r.price) : '—'}</td></tr>`).join('')}</tbody></table></div>
+      ${d.count > d.rows.length ? `<div class="edu-note">符合 ${d.count} 筆，顯示前 ${d.rows.length} 筆，請縮小關鍵字</div>` : ''}`;
+  } catch {
+    box.innerHTML = `<div class="edu-empty"><div class="edu-empty-ico">⚠️</div>
+      <div class="edu-empty-title">載入失敗</div><div class="edu-empty-desc">請重新整理頁面再試</div></div>`;
+  }
+}
+
+function clearSkuQuery() {
+  const q = document.getElementById('skuQuery');
+  q.value = '';
+  document.getElementById('skuClear').style.display = 'none';
+  loadSkuProducts('');
+  q.focus();
+}
+
+async function rebuildSku() {
+  try {
+    const res = await fetch(`${API}/sku-products/rebuild`, { method: 'POST' });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || '建立失敗');
+    toast(`已建立 ${d.count} 筆查詢資料`, 'success');
+  } catch (e) {
+    toast('建立失敗：' + e.message, 'error');
+  }
+  loadSkuProducts('');
 }
 
 // ── 教育價查詢 ──────────────────────────────────

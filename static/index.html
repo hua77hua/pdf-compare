@@ -315,6 +315,24 @@
 
   <!-- ══ View: 貨號表 ══ -->
   <section id="view-sku" class="view">
+    <div class="block edu-block">
+      <div class="blk-hd">
+        <span class="blk-ico">🔍</span>
+        <div class="blk-hd-text">
+          <div class="blk-title">貨號查詢</div>
+          <div class="blk-sub" id="skuCount">輸入品名、顏色、容量或型號</div>
+        </div>
+      </div>
+      <div class="blk-bd edu-search-bd">
+        <div class="edu-searchbar">
+          <span class="edu-search-ico">🔍</span>
+          <input type="text" id="skuQuery" class="edu-search-inp"
+                 placeholder="例：iPhone 18 Pro Max 256G 勃根地紅">
+          <button class="edu-clear" id="skuClear" onclick="clearSkuQuery()" style="display:none">✕</button>
+        </div>
+        <div id="skuResults" class="edu-results"></div>
+      </div>
+    </div>
     <div class="block doc-block doc-sku">
       <div class="blk-hd">
         <span class="blk-ico">🏷️</span>
@@ -388,7 +406,7 @@
 </div><!-- /app -->
 
 <div id="toast" class="toast"></div>
-<script src="app.js?v=20261108"></script>
+<script src="app.js?v=20261113"></script>
 <script src="warranty.js?v=20261108c"></script>
 </body>
 </html>
