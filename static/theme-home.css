@@ -227,3 +227,4 @@ body {
   .hd-home { padding: 8px 14px; }
 }
 .home-row { grid-template-columns: 1fr; }
+.wc-stale { color: #c0392b; font-weight: 600; }

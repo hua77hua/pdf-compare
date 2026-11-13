@@ -1426,6 +1426,14 @@ async function uploadDoc(cat, file) {
       toast(data.parsed ? `上傳成功！已自動建立 ${data.parsed} 筆貨號查詢資料`
                         : '上傳成功！但這份 PDF 解析不到貨號表格，查詢清單維持舊資料', data.parsed ? 'success' : 'info');
       loadSkuProducts(document.getElementById('skuQuery').value.trim());
+    } else if ((cat === 'applecare' || cat === 'jc') && data.parsed && typeof data.parsed === 'object') {
+      const got = Object.keys(data.parsed).map(k => k === 'ac' ? 'AppleCare+' : 'JC');
+      toast(got.length ? `上傳成功！已讀取 ${got.join('、')} 價格，快速比較已更新`
+                       : '上傳成功！但這份 PDF 讀不到價目表，快速比較維持舊價格', got.length ? 'success' : 'info');
+      if (typeof wcLoadData === 'function') wcLoadData();
+    } else if ((cat === 'applecare' || cat === 'jc') && typeof wcLoadData === 'function') {
+      toast('已上傳圖片。圖片無法自動更新快速比較的價格，請改傳 PDF', 'info');
+      wcLoadData();
     } else if (cat === 'bts' && typeof data.parsed === 'number') {
       toast(`上傳成功！已自動建立 ${data.parsed} 筆 BTS 查詢資料`, 'success');
       loadBtsProducts(document.getElementById('btsQuery').value.trim());

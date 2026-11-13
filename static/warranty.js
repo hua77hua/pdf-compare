@@ -8,7 +8,7 @@ const WC_IPHONE_DED = [['螢幕或背面玻璃', 900], ['其他損害', 3200]];
 const WC_DUO_DED    = [['內螢幕保護層', 690], ['表層損壞', 1700], ['外螢幕或機背玻璃', 900], ['內螢幕維修或其他損壞', 3200]];
 const WC_IPAD_DED   = [['僅螢幕', 900], ['iPad 其他損害', 3200], ['Apple Pencil 與鍵盤', 900]];
 const WC_MAC_DED    = [['螢幕單獨損壞', 3200], ['其他損害', 9600]];
-const WC_APPLECARE = [
+let WC_APPLECARE = [
   // iPhone（2 年）
   { cat: 'iPhone', name: 'iPhone Duo',        fee: 10490, yrs: 2, ded: WC_DUO_DED, battery: 7950, repair: '其他損壞 $7,390 ~ $56,190；機背玻璃維修 $6,290' },
   { cat: 'iPhone', name: 'iPhone 18 Pro Max', fee: 6990, yrs: 2, ded: WC_IPHONE_DED, battery: 4490, repair: '$12,290 ~ $32,690' },
@@ -60,7 +60,7 @@ const WC_JC_SMALL = [   // iPad / Watch / AirPods 共用同一張費率
   { lo: 40001, hi: 75000, m: 239, y1: 2400, y2: 4300, y3: 6480, rep: 4000 },
   { lo: 75001, hi: 95000, m: 349, y1: 3500, y2: 6500, y3: 9300, rep: 5500 },
 ];
-const WC_JC = {
+let WC_JC = {
   iphone: [
     { lo: 0,     hi: 10000, m: 98,  y1: 1250, y2: 2250,  y3: 3370,  rep: 1000 },
     { lo: 10001, hi: 20000, m: 198, y1: 2480, y2: 4580,  y3: 6690,  rep: 2000 },
@@ -81,6 +81,22 @@ const WC_JC = {
 };
 
 const wcState = { cat: 'iPhone', model: null, band: null };
+// 網站上傳 AppleCare+/JC 的 PDF 後，伺服器會解析出最新價格；沒有就用上面內建的 2026.11 版
+let wcInfo = { ac: '2026.11', jc: '2026.11', staleAc: false, staleJc: false };
+async function wcLoadData() {
+  try {
+    const d = await (await fetch(`${API}/warranty-data`)).json();
+    const keep = wcState.model && wcState.model.name;
+    if (d.ac) { WC_APPLECARE = d.ac.data; wcInfo.ac = d.ac.version || '最新上傳'; }
+    if (d.jc) { WC_JC = d.jc.data; wcInfo.jc = d.jc.version || '最新上傳'; }
+    wcInfo.staleAc = !!d.ac_stale; wcInfo.staleJc = !!d.jc_stale;
+    wcState.model = WC_APPLECARE.find(m => m.name === keep) || null;
+    wcState.band = null;
+    if (document.getElementById('wcCats')) {
+      wcRenderCats(); wcRenderModels(); wcRenderBands(); wcRenderResult();
+    }
+  } catch { /* 取不到就維持內建價格 */ }
+}
 const wcMoney = n => '$' + Number(n).toLocaleString();
 const wcEsc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const wcNorm = s => String(s).toLowerCase().replace(/[\s"”“'\-()（）\/]+/g, '');
@@ -234,7 +250,9 @@ function wcSummary(m, b, bands) {
   else tip = '依客人需求：想保費低選便宜的一家；在意竊盜、彈性年限選 JC；想官方直營服務選 AppleCare+。';
   out.push(`<span class="wc-tip">建議：${tip}</span>`);
   return '<ul>' + out.map(x => `<li>${x}</li>`).join('') + '</ul>' +
-    '<div class="wc-foot">價格依 2026.11 版價目表；原廠維修價僅供參考，以實際報價為主。</div>';
+    `<div class="wc-foot">價格依價目表：AppleCare+ ${wcEsc(wcInfo.ac)} 版、JC ${wcEsc(wcInfo.jc)} 版；原廠維修價僅供參考，以實際報價為主。</div>` +
+    (wcInfo.staleAc || wcInfo.staleJc
+      ? `<div class="wc-foot wc-stale">⚠️ 最新上傳的${wcInfo.staleAc ? ' AppleCare+' : ''}${wcInfo.staleAc && wcInfo.staleJc ? ' 與' : ''}${wcInfo.staleJc ? ' JC' : ''} 是圖片，系統無法自動讀取，上面價格還是舊版。請改傳 PDF 版價目表。</div>` : '');
 }
 
-document.addEventListener('DOMContentLoaded', wcInit);
+document.addEventListener('DOMContentLoaded', () => { wcInit(); wcLoadData(); });

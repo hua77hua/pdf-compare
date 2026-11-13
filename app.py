@@ -95,6 +95,16 @@ def init_db():
         if c not in [r[1] for r in conn.execute("PRAGMA table_info(sku_products)")]:
             conn.execute(f"ALTER TABLE sku_products ADD COLUMN {c} TEXT DEFAULT ''")
             conn.execute("UPDATE sku_products SET grp = ''")   # 讓查詢時用目前 PDF 自動重建一次
+    # 延長保固快速比較：從 AppleCare+ / JC 價目表 PDF 解析出的資料（kind = 'ac' | 'jc'）
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS warranty_data (
+            kind    TEXT PRIMARY KEY,
+            json    TEXT NOT NULL,
+            version TEXT DEFAULT '',
+            source  TEXT DEFAULT '',
+            updated TEXT NOT NULL
+        )
+    ''')
     # 目前活動查詢清單：分類 / 貨號 / 品名 / 型號 / 原會員價 / 會員價 / 折讓額 / 促銷價 / 活動
     conn.execute('''
         CREATE TABLE IF NOT EXISTS cur_products (
@@ -996,6 +1006,15 @@ def upload_doc(category):
             _save_sku_products(rows)
         parsed = len(rows)
 
+    # 延長保固 PDF：解析出 AppleCare+ / JC 價格，快速比較會跟著更新（圖片無法自動讀取）
+    elif category in ('applecare', 'jc') and ext == '.pdf':
+        try:
+            found = _save_warranty_from_pdf(filepath, file.filename)
+        except Exception:
+            found = {}
+        parsed = {k: (len(v['data']) if k == 'ac' else sum(len(b) for b in v['data'].values()))
+                  for k, v in found.items()}
+
     resp = {'message': '上傳成功', 'name': file.filename}
     if parsed is not None:
         resp['parsed'] = parsed
@@ -1355,6 +1374,61 @@ def bts_products_rebuild():
     conn.commit()
     conn.close()
     return jsonify({'count': len(rows), 'message': f'已建立 {len(rows)} 筆'})
+
+
+def _save_warranty_from_pdf(path, source):
+    """解析 PDF 內的 AC+ / JC 表，存成快速比較用資料。回傳這次成功解析到的 kind。"""
+    import json
+    from warranty_parse import parse_warranty_pdf
+    found = parse_warranty_pdf(path)
+    if found:
+        conn = sqlite3.connect(DB_PATH)
+        for kind, v in found.items():
+            conn.execute(
+                'INSERT INTO warranty_data (kind, json, version, source, updated) VALUES (?, ?, ?, ?, ?) '
+                'ON CONFLICT(kind) DO UPDATE SET json = excluded.json, version = excluded.version, '
+                'source = excluded.source, updated = excluded.updated',
+                (kind, json.dumps(v['data'], ensure_ascii=False), v['version'], source,
+                 datetime.now().isoformat()))
+        conn.commit()
+        conn.close()
+    return found
+
+
+@app.route('/api/warranty-data', methods=['GET'])
+def warranty_data():
+    """快速比較的價格資料；沒有解析過的 kind 回 null（前端用內建的 2026.11 版）。
+    stale = 該分類最新上傳的是圖片、比最後一次解析還新（無法自動讀取，提醒使用者）。"""
+    import json
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    data = {r['kind']: dict(r) for r in conn.execute('SELECT * FROM warranty_data').fetchall()}
+    docs = {r['category']: dict(r) for r in conn.execute(
+        "SELECT category, orig_name, stored_name, upload_time FROM single_docs "
+        "WHERE category IN ('applecare', 'jc')").fetchall()}
+    conn.close()
+    out = {}
+    for kind, cat in (('ac', 'applecare'), ('jc', 'jc')):
+        d, doc = data.get(kind), docs.get(cat)
+        out[kind] = {'data': json.loads(d['json']), 'version': d['version'], 'updated': d['updated'],
+                     'source': d['source']} if d else None
+        out[kind + '_stale'] = bool(doc and doc['stored_name'].lower().endswith(IMAGE_EXTS)
+                                    and (not d or doc['upload_time'] > d['updated']))
+    return jsonify(out)
+
+
+@app.route('/api/warranty-data/rebuild', methods=['POST'])
+def warranty_data_rebuild():
+    """用伺服器上目前的 AppleCare+ / JC PDF 重新解析（不需重新上傳）。"""
+    conn = sqlite3.connect(DB_PATH)
+    rows = conn.execute("SELECT orig_name, stored_name FROM single_docs WHERE category IN ('applecare', 'jc')").fetchall()
+    conn.close()
+    got = {}
+    for orig, stored in rows:
+        p = os.path.join(UPLOAD_FOLDER, stored)
+        if stored.lower().endswith('.pdf') and os.path.exists(p):
+            got.update({k: True for k in _save_warranty_from_pdf(p, orig)})
+    return jsonify({'parsed': sorted(got)})
 
 
 def _save_sku_products(rows):
