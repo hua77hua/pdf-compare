@@ -1460,18 +1460,31 @@ async function loadSkuProducts(q = '') {
       return;
     }
     count.textContent = `找到 ${d.count} 筆`;
-    box.innerHTML = `<div class="edu-tbl-wrap"><table class="edu-tbl">
-      <thead><tr><th>品名</th><th>貨號</th><th>型號</th><th>價格</th></tr></thead>
-      <tbody>${d.rows.map(r => `<tr>
-        <td class="edu-name">${esc(r.name)}</td>
-        <td class="edu-code"><b>${esc(r.code)}</b></td>
-        <td>${esc(r.mpn) || '—'}</td>
-        <td>${r.price ? '$' + esc(r.price) : '—'}</td></tr>`).join('')}</tbody></table></div>
-      ${d.count > d.rows.length ? `<div class="edu-note">符合 ${d.count} 筆，顯示前 ${d.rows.length} 筆，請縮小關鍵字</div>` : ''}`;
+    // 依機種分組 → 同容量/規格一行 → 每個顏色一顆貨號(點一下複製)
+    const groups = new Map();
+    d.rows.forEach(r => {
+      const g = groups.get(r.grp || r.name) || groups.set(r.grp || r.name, new Map()).get(r.grp || r.name);
+      const key = (r.sub || '') + '|' + (r.price || '');
+      (g.get(key) || g.set(key, { sub: r.sub, price: r.price, items: [] }).get(key)).items.push(r);
+    });
+    box.innerHTML = [...groups].map(([name, subs]) => `<div class="sku-group">
+      <div class="sku-group-hd">${esc(name)}</div>
+      ${[...subs.values()].map(s => `<div class="sku-line">
+        <div class="sku-line-hd"><span class="sku-sub">${esc(s.sub) || ''}</span>
+          <span class="sku-price">${s.price ? '$' + esc(s.price) : ''}</span></div>
+        <div class="sku-chips">${s.items.map(r => `<button class="sku-chip" onclick="copySku('${esc(r.code)}')">
+          <span class="sku-color">${esc(r.color || r.mpn || '')}</span>
+          <b class="sku-code">${esc(r.code)}</b></button>`).join('')}</div>
+      </div>`).join('')}</div>`).join('') +
+      (d.count > d.rows.length ? `<div class="edu-note">符合 ${d.count} 筆，顯示前 ${d.rows.length} 筆，請縮小關鍵字</div>` : '');
   } catch {
     box.innerHTML = `<div class="edu-empty"><div class="edu-empty-ico">⚠️</div>
       <div class="edu-empty-title">載入失敗</div><div class="edu-empty-desc">請重新整理頁面再試</div></div>`;
   }
+}
+
+function copySku(code) {
+  if (navigator.clipboard) navigator.clipboard.writeText(code).then(() => toast('已複製貨號 ' + code, 'success'), () => {});
 }
 
 function clearSkuQuery() {

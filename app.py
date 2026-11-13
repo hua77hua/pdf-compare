@@ -82,9 +82,15 @@ def init_db():
             code  TEXT DEFAULT '',
             mpn   TEXT DEFAULT '',
             price TEXT DEFAULT '',
-            cat   TEXT DEFAULT ''
+            cat   TEXT DEFAULT '',
+            grp   TEXT DEFAULT '',
+            sub   TEXT DEFAULT '',
+            color TEXT DEFAULT ''
         )
     ''')
+    for c in ('grp', 'sub', 'color'):      # 舊資料庫補欄位
+        if c not in [r[1] for r in conn.execute("PRAGMA table_info(sku_products)")]:
+            conn.execute(f"ALTER TABLE sku_products ADD COLUMN {c} TEXT DEFAULT ''")
     # 目前活動查詢清單：分類 / 貨號 / 品名 / 型號 / 原會員價 / 會員價 / 折讓額 / 促銷價 / 活動
     conn.execute('''
         CREATE TABLE IF NOT EXISTS cur_products (
@@ -281,6 +287,9 @@ def extract_sku_products(filepath):
                 ci = head.index('貨號')
                 mi = next((i for i, c in enumerate(head) if '型號' in c), -1)
                 pi = next((i for i, c in enumerate(head) if '單價' in c or '售價' in c), -1)
+                col = next((i for i, c in enumerate(head[:ci]) if '顏' in c), -1)
+                if col < 0:
+                    col = next((i for i, c in enumerate(head[:ci]) if c == '規格'), -1)
                 title = ''
                 for r in t[:hi]:
                     cs = [cl(c) for c in r]
@@ -309,15 +318,17 @@ def extract_sku_products(filepath):
                     if pi >= 0 and pi < len(r) and cl(r[pi]):
                         price = cl(r[pi])
                     mpn = cl(r[mi]) if 0 <= mi < len(r) else ''
-                    out.append([None, code, mpn, price, list(carry), title])
+                    out.append([col, code, mpn, price, list(carry), title])
     rows = []
-    for _, code, mpn, price, cells, title in out:
+    for col, code, mpn, price, cells, title in out:
         cat = re.sub(r'\s*\n\s*', ' ', cells[0]) if cells else ''
         head = title or cat
         if title and cat and ' '.join(cat.split()[:2]) not in title:
             head = title + ' ' + cat              # 配件表: 標題 + 品項(類別)
+        color = cells[col] if 0 < col < len(cells) else ''
+        sub = ' '.join(x for k, x in enumerate(cells) if k > 0 and k != col and x)
         name = ' '.join(x for x in [head] + cells[1:] if x)
-        rows.append((name, code, mpn, price, cat))
+        rows.append((name, code, mpn, price, cat, head, sub, color))
     return rows
 
 
@@ -1312,7 +1323,8 @@ def _save_sku_products(rows):
     conn = sqlite3.connect(DB_PATH)
     conn.execute('DELETE FROM sku_products')
     conn.executemany(
-        'INSERT INTO sku_products (name, code, mpn, price, cat) VALUES (?, ?, ?, ?, ?)', rows)
+        'INSERT INTO sku_products (name, code, mpn, price, cat, grp, sub, color) '
+        'VALUES (?, ?, ?, ?, ?, ?, ?, ?)', rows)
     conn.commit()
     conn.close()
 
@@ -1327,15 +1339,21 @@ def sku_products():
     q = request.args.get('q', '').strip()
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
-    rows = [dict(r) for r in conn.execute(
-        'SELECT name, code, mpn, price, cat FROM sku_products ORDER BY id').fetchall()]
+    sql = 'SELECT name, code, mpn, price, cat, grp, sub, color FROM sku_products ORDER BY id'
+    rows = [dict(r) for r in conn.execute(sql).fetchall()]
     conn.close()
+    if rows and not rows[0]['grp']:          # 舊版清單(沒有分組欄位) → 用目前 PDF 自動重建一次
+        sku_products_rebuild()
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        rows = [dict(r) for r in conn.execute(sql).fetchall()]
+        conn.close()
     tokens = [_sku_norm(t) for t in q.split() if t.strip()]
     if not tokens:
         return jsonify({'total': len(rows), 'rows': []})
     hits = [d for d in rows
             if all(t in _sku_norm(' '.join([d['name'], d['cat'], d['mpn'], d['code']])) for t in tokens)]
-    return jsonify({'total': len(rows), 'rows': hits[:300], 'count': len(hits)})
+    return jsonify({'total': len(rows), 'rows': hits[:400], 'count': len(hits)})
 
 
 @app.route('/api/sku-products/rebuild', methods=['POST'])
