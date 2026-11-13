@@ -48,7 +48,7 @@ let WC_APPLECARE = [
   { cat: 'AirPods', name: 'Beats',         fee: 990,  yrs: 2, ded: [['意外損害', 900]], battery: null, repair: '$2,690 ~ $3,390', noJc: true },
   { cat: 'AirPods', name: 'HomePod',       fee: 1390, yrs: 2, ded: [['意外損害', 1300]], battery: null, repair: '$8,799', noJc: true },
   { cat: 'AirPods', name: 'HomePod mini',  fee: 590,  yrs: 2, ded: [['意外損害', 500]],  battery: null, repair: '$4,190', noJc: true },
-  { cat: 'AirPods', name: 'Apple TV',      fee: 720,  yrs: 3, ded: [['意外損害', 490]],  battery: null, repair: '$5,869 ~ $6,799', noJc: true },
+  { cat: 'AirPods', name: 'Apple TV (4th)', fee: 1390, yrs: 3, ded: [['意外損害', 490]],  battery: null, repair: '$8,290', noJc: true },
 ];
 const WC_CATS = [['iPhone', '📱 iPhone'], ['iPad', '📲 iPad'], ['Mac', '💻 Mac'], ['Watch', '⌚ Watch'], ['AirPods', '🎧 AirPods / 音樂']];
 
@@ -252,7 +252,7 @@ function wcSummary(m, b, bands) {
   return '<ul>' + out.map(x => `<li>${x}</li>`).join('') + '</ul>' +
     `<div class="wc-foot">價格依價目表：AppleCare+ ${wcEsc(wcInfo.ac)} 版、JC ${wcEsc(wcInfo.jc)} 版；原廠維修價僅供參考，以實際報價為主。</div>` +
     (wcInfo.staleAc || wcInfo.staleJc
-      ? `<div class="wc-foot wc-stale">⚠️ 最新上傳的${wcInfo.staleAc ? ' AppleCare+' : ''}${wcInfo.staleAc && wcInfo.staleJc ? ' 與' : ''}${wcInfo.staleJc ? ' JC' : ''} 是圖片，系統無法自動讀取，上面價格還是舊版。請改傳 PDF 版價目表。</div>` : '');
+      ? `<div class="wc-foot wc-stale">⚠️ 最新上傳的${wcInfo.staleAc ? ' AppleCare+' : ''}${wcInfo.staleAc && wcInfo.staleJc ? ' 與' : ''}${wcInfo.staleJc ? ' JC' : ''} 讀不到價格（圖片、或由截圖轉成的 PDF），上面價格還是舊版。請改傳有文字的 PDF 版價目表，或把檔案給我手動更新。</div>` : '');
 }
 
 document.addEventListener('DOMContentLoaded', () => { wcInit(); wcLoadData(); });

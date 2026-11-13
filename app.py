@@ -1404,7 +1404,7 @@ def _save_warranty_from_pdf(path, source):
 @app.route('/api/warranty-data', methods=['GET'])
 def warranty_data():
     """快速比較的價格資料；沒有解析過的 kind 回 null（前端用內建的 2026.11 版）。
-    stale = 該分類最新上傳的是圖片、比最後一次解析還新（無法自動讀取，提醒使用者）。"""
+    stale = 該分類最新上傳的檔案沒能解析出價格（圖片或截圖 PDF），提醒使用者。"""
     import json
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
@@ -1418,8 +1418,8 @@ def warranty_data():
         d, doc = data.get(kind), docs.get(cat)
         out[kind] = {'data': json.loads(d['json']), 'version': d['version'], 'updated': d['updated'],
                      'source': d['source']} if d else None
-        out[kind + '_stale'] = bool(doc and doc['stored_name'].lower().endswith(IMAGE_EXTS)
-                                    and (not d or doc['upload_time'] > d['updated']))
+        # 該分類有上傳檔，但之後沒有成功解析出價格（圖片、或截圖轉成的 PDF）→ 提醒價格不是最新
+        out[kind + '_stale'] = bool(doc and (not d or doc['upload_time'] > d['updated']))
     return jsonify(out)
 
 
